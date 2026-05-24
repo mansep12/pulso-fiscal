@@ -1,0 +1,43 @@
+[project]
+name = "pulso-fiscal-etl"
+version = "0.1.0"
+description = "Pipeline de datos para Pulso Fiscal"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "beautifulsoup4>=4.12",
+    "duckdb>=1.0",
+    "httpx>=0.27",
+    "lxml>=5.2",
+    "playwright>=1.45",
+    "polars>=1.0",
+    "pydantic>=2.8",
+    "python-dotenv>=1.0",
+    "rich>=13.7",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pulso_fiscal"]

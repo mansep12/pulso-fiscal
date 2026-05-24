@@ -1,0 +1,36 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.uv/
+
+# Node (future web app)
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Raw and temporary data
+etl/data/raw/*
+etl/data/interim/*
+!etl/data/raw/.gitkeep
+!etl/data/interim/.gitkeep
+
+# Secrets
+.env
+.env.local
+*.key
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
