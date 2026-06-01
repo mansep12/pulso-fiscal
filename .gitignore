@@ -14,11 +14,14 @@ out/
 dist/
 *.tsbuildinfo
 
-# Raw and temporary data
+# ETL data
 etl/data/raw/*
 etl/data/interim/*
+etl/data/processed/*
+
 !etl/data/raw/.gitkeep
 !etl/data/interim/.gitkeep
+!etl/data/processed/.gitkeep
 
 # Secrets
 .env

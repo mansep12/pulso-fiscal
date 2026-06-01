@@ -17,6 +17,10 @@ dependencies = [
     "rich>=13.7",
 ]
 
+[project.scripts]
+senado-gastos-operacionales = "pulso_fiscal.scrapers.senado_gastos_operacionales:main"
+senado-normalizar-gastos-operacionales = "pulso_fiscal.normalizers.senado_gastos_operacionales:main"
+
 [dependency-groups]
 dev = [
     "mypy>=1.11",
