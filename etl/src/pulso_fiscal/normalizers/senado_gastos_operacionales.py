@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
 import unicodedata
 from collections import Counter, defaultdict
@@ -17,6 +18,15 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+from pulso_fiscal.manifest import (
+    PipelineManifest,
+    ProcessedFileRecord,
+    make_run_id,
+    sha256_file,
+)
 
 ETL_DIR = Path(__file__).resolve().parents[3]
 DEFAULT_PROCESSED_DIR = ETL_DIR / "data" / "processed"
@@ -183,7 +193,10 @@ class NormalizationResult:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    load_dotenv(ETL_DIR / ".env.local")
     args = parse_args(argv)
+    run_id = args.run_id or make_run_id()
+
     expense_csv = args.expenses_csv or latest_csv(args.processed_dir, EXPENSE_FILE_PREFIX)
     parliamentarians_csv = args.parliamentarians_csv or optional_latest_csv(
         args.processed_dir,
@@ -214,7 +227,95 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"Ranking mensual: {ranking_path}")
     print(f"Categorias: {categories_path}")
     print(f"Calidad: {quality_path}")
+
+    # Manifest
+    download_manifest_path = (
+        output_dir / "senado" / "gastos_operacionales" / "download_manifest.json"
+    )
+    output_files = [
+        _processed_record("clean", clean_path, len(result.clean_rows)),
+        _processed_record("ranking_mensual", ranking_path, len(result.ranking_rows)),
+        _processed_record("categorias", categories_path, len(result.category_rows)),
+        _processed_record("quality", quality_path, 0),
+    ]
+    manifest = PipelineManifest(
+        dataset="senado_gastos_operacionales",
+        source="Senado de Chile",
+        run_id=run_id,
+        generated_at_utc=datetime.now(UTC).replace(microsecond=0).isoformat(),
+        period_from=suffix.split("_")[0] if "_" in suffix else suffix,
+        period_to=suffix.split("_")[1] if "_" in suffix else suffix,
+        download_manifest_path=str(download_manifest_path),
+        input_files=[str(expense_csv), str(parliamentarians_csv) if parliamentarians_csv else ""],
+        output_files=output_files,
+        quality_summary=result.quality_report,
+    )
+    pipeline_manifest_path = (
+        output_dir / "senado" / "gastos_operacionales" / "pipeline_manifest.json"
+    )
+    manifest.write(pipeline_manifest_path)
+    print(f"Pipeline manifest: {pipeline_manifest_path}")
+
+    if args.upload_r2:
+        _upload_processed_to_r2(manifest, run_id, output_dir)
+
+    if args.load_db:
+        from pulso_fiscal.loaders.supabase import load_pipeline  # noqa: PLC0415
+        load_pipeline(manifest, clean_path, ranking_path)
+
     return 0
+
+
+def _processed_record(name: str, path: Path, row_count: int) -> ProcessedFileRecord:
+    return ProcessedFileRecord(
+        name=name,
+        local_path=str(path),
+        sha256=sha256_file(path),
+        size_bytes=path.stat().st_size,
+        row_count=row_count,
+    )
+
+
+def _upload_processed_to_r2(
+    manifest: PipelineManifest,
+    run_id: str,
+    output_dir: Path,
+) -> None:
+    from pulso_fiscal.storage.r2 import R2Client  # noqa: PLC0415
+
+    r2 = R2Client()
+    public_bucket = os.environ.get("R2_PUBLIC_BUCKET", "pulso-fiscal-public")
+    r2_prefix = f"senado/gastos_operacionales/runs/{run_id}/processed"
+
+    for record in manifest.output_files:
+        local_path = Path(record.local_path)
+        r2_key = f"{r2_prefix}/{local_path.name}"
+        if not r2.object_exists(public_bucket, r2_key):
+            r2.upload_file(local_path, public_bucket, r2_key)
+            print(f"  Subido: {r2_key}")
+        else:
+            print(f"  Ya existe: {r2_key}")
+        record.r2_key = r2_key
+        record.r2_bucket = public_bucket
+        record.public_url = r2.build_public_url(r2_key)
+
+    # Subir a latest/
+    for record in manifest.output_files:
+        local_path = Path(record.local_path)
+        latest_key = f"senado/gastos_operacionales/latest/{local_path.name}"
+        r2.upload_file(local_path, public_bucket, latest_key)
+        print(f"  Latest actualizado: {latest_key}")
+
+    # Subir manifest
+    manifest_r2_key = f"senado/gastos_operacionales/runs/{run_id}/pipeline_manifest.json"
+    manifest.r2_manifest_key = manifest_r2_key
+    manifest.public_manifest_url = r2.build_public_url(manifest_r2_key)
+    manifest_bytes = (
+        json.dumps(manifest.to_dict(), ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
+    r2.upload_bytes(manifest_bytes, public_bucket, manifest_r2_key, "application/json")
+    r2.upload_bytes(manifest_bytes, public_bucket, "senado/gastos_operacionales/latest/pipeline_manifest.json", "application/json")
+    print(f"  Manifest subido: {manifest_r2_key}")
 
 
 def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
@@ -226,6 +327,23 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--processed-dir", type=Path, default=DEFAULT_PROCESSED_DIR)
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--suffix", default=None)
+    parser.add_argument(
+        "--run-id",
+        default=None,
+        help="Identificador unico de la corrida. Si no se pasa, se genera automaticamente.",
+    )
+    parser.add_argument(
+        "--upload-r2",
+        action="store_true",
+        default=False,
+        help="Sube archivos procesados a Cloudflare R2 al finalizar.",
+    )
+    parser.add_argument(
+        "--load-db",
+        action="store_true",
+        default=False,
+        help="Carga datos limpios a Supabase/Postgres al finalizar.",
+    )
     return parser.parse_args(argv)
 
 

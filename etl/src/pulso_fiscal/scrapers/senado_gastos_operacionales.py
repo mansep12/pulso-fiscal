@@ -19,8 +19,12 @@ from pathlib import Path
 from typing import Any, cast
 
 import httpx
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+
+from pulso_fiscal.manifest import DownloadManifest, RawFileRecord, make_run_id, sha256_file
+from pulso_fiscal.storage.r2 import R2Client
 
 BASE_URL = "https://web-back.senado.cl/api/transparency"
 AVAILABLE_PERIODS_URL = f"{BASE_URL}/available-periods"
@@ -163,9 +167,12 @@ class ScraperConfig:
     max_periods: int | None
     timeout: float
     sleep_seconds: float
+    upload_r2: bool = False
+    run_id: str = ""
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    load_dotenv(ETL_DIR / ".env.local")
     args = parse_args(argv)
     config = ScraperConfig(
         raw_dir=args.raw_dir,
@@ -177,6 +184,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_periods=args.max_periods,
         timeout=args.timeout,
         sleep_seconds=args.sleep,
+        upload_r2=args.upload_r2,
+        run_id=make_run_id(),
     )
 
     console = Console()
@@ -239,6 +248,12 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         type=float,
         default=0.1,
         help="Pausa entre requests en segundos. Por defecto: 0.1.",
+    )
+    parser.add_argument(
+        "--upload-r2",
+        action="store_true",
+        default=False,
+        help="Sube archivos raw a Cloudflare R2 al finalizar la descarga.",
     )
 
     args = parser.parse_args(argv)
@@ -358,6 +373,17 @@ def run(client: httpx.Client, config: ScraperConfig, console: Console) -> None:
         f"Tambien se generaron {len(expense_year_paths)} CSVs de gastos por ano y "
         f"{len(parliamentarian_year_paths)} CSVs de parlamentarios por ano."
     )
+
+    manifest = _build_download_manifest(config, selected_periods)
+    manifest_path = config.processed_dir / "senado" / "gastos_operacionales" / "download_manifest.json"
+    manifest.write(manifest_path)
+    console.print(f"Manifest guardado: {display_path(manifest_path, ETL_DIR)}")
+
+    if config.upload_r2:
+        console.print("Subiendo archivos a Cloudflare R2...")
+        _upload_raw_to_r2(manifest, config, console)
+        manifest.write(manifest_path)
+        console.print("Subida a R2 completa.")
 
 
 def fetch_available_periods(client: httpx.Client) -> ApiResponse:
@@ -736,6 +762,67 @@ def now_utc() -> str:
 def sleep(seconds: float) -> None:
     if seconds > 0:
         time.sleep(seconds)
+
+
+def _build_download_manifest(
+    config: ScraperConfig,
+    selected_periods: list[Period],
+) -> DownloadManifest:
+    """Escanea raw_dir y construye el DownloadManifest con hashes de cada archivo."""
+    raw_files: list[RawFileRecord] = []
+    for json_path in sorted(config.raw_dir.rglob("*.json")):
+        raw_files.append(
+            RawFileRecord(
+                local_path=display_path(json_path, ETL_DIR),
+                sha256=sha256_file(json_path),
+                size_bytes=json_path.stat().st_size,
+            )
+        )
+
+    period_from = selected_periods[0].label if selected_periods else ""
+    period_to = selected_periods[-1].label if selected_periods else ""
+
+    return DownloadManifest(
+        dataset="senado_gastos_operacionales",
+        source="Senado de Chile",
+        run_id=config.run_id,
+        captured_at_utc=now_utc(),
+        period_from=period_from,
+        period_to=period_to,
+        periods_downloaded=len(selected_periods),
+        raw_files=raw_files,
+    )
+
+
+def _upload_raw_to_r2(
+    manifest: DownloadManifest,
+    config: ScraperConfig,
+    console: Console,
+) -> None:
+    """Sube todos los archivos raw a R2 y actualiza el manifest con las keys."""
+    import os
+    r2 = R2Client()
+    raw_bucket = os.environ.get("R2_RAW_BUCKET", "pulso-fiscal-raw")
+    r2_prefix = f"senado/gastos_operacionales/runs/{config.run_id}/raw"
+
+    for record in manifest.raw_files:
+        local_path = ETL_DIR / record.local_path
+        r2_key = f"{r2_prefix}/{record.local_path}"
+        if not r2.object_exists(raw_bucket, r2_key):
+            r2.upload_file(local_path, raw_bucket, r2_key)
+            console.print(f"  Subido: {r2_key}")
+        else:
+            console.print(f"  Ya existe: {r2_key}")
+        record.r2_key = r2_key
+        record.r2_bucket = raw_bucket
+
+    manifest_r2_key = f"senado/gastos_operacionales/runs/{config.run_id}/download_manifest.json"
+    manifest.r2_manifest_key = manifest_r2_key
+    manifest_bytes = (
+        __import__("json").dumps(manifest.to_dict(), ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
+    r2.upload_bytes(manifest_bytes, raw_bucket, manifest_r2_key, "application/json")
+    console.print(f"  Manifest subido: {manifest_r2_key}")
 
 
 if __name__ == "__main__":
