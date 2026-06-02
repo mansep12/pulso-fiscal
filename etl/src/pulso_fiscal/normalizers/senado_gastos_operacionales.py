@@ -314,7 +314,12 @@ def _upload_processed_to_r2(
         json.dumps(manifest.to_dict(), ensure_ascii=False, indent=2) + "\n"
     ).encode("utf-8")
     r2.upload_bytes(manifest_bytes, public_bucket, manifest_r2_key, "application/json")
-    r2.upload_bytes(manifest_bytes, public_bucket, "senado/gastos_operacionales/latest/pipeline_manifest.json", "application/json")
+    r2.upload_bytes(
+        manifest_bytes,
+        public_bucket,
+        "senado/gastos_operacionales/latest/pipeline_manifest.json",
+        "application/json",
+    )
     print(f"  Manifest subido: {manifest_r2_key}")
 
 
@@ -433,7 +438,10 @@ def normalize_expenses(
         update_category_stats(category_stats, category, clean_row, amount, include_in_ranking)
         update_aggregate(aggregates, aggregate_names, clean_row, amount, row_status)
 
-    ranking_rows = build_ranking_rows(aggregates, aggregate_names)
+    category_names = {
+        category_id: stats.name for category_id, stats in category_stats.items()
+    }
+    ranking_rows = build_ranking_rows(aggregates, aggregate_names, category_names)
     category_rows = build_category_rows(category_stats)
     quality_report = build_quality_report(
         source_path=source_path,
@@ -516,6 +524,7 @@ def update_aggregate(
 def build_ranking_rows(
     aggregates: Mapping[tuple[str, str, str], Aggregate],
     aggregate_names: Mapping[tuple[str, str, str], tuple[str, str, str, str, str]],
+    category_names: Mapping[str, str],
 ) -> list[CsvRow]:
     rows_by_period_category: dict[tuple[str, str], list[tuple[tuple[str, str, str], Aggregate]]] = (
         defaultdict(list)
@@ -536,9 +545,10 @@ def build_ranking_rows(
             ),
         )
         for rank, (key, aggregate) in enumerate(ranked, start=1):
-            year, month, category_name, parliamentarian_name, parliamentarian_id = (
+            year, month, fallback_category_name, parliamentarian_name, parliamentarian_id = (
                 aggregate_names[key]
             )
+            category_name = category_names.get(key[1], fallback_category_name)
             ranking_rows.append(
                 {
                     "periodo": key[0],

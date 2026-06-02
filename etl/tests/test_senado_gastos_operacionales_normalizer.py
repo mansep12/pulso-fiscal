@@ -80,6 +80,44 @@ def test_normalize_expenses_excludes_duplicates_and_builds_monthly_ranking() -> 
     }
 
 
+def test_normalize_expenses_uses_stable_category_name_for_same_id() -> None:
+    rows = [
+        expense_row(
+            "1",
+            "2025-01",
+            "7",
+            "Persona Uno",
+            "SUSCRIPCIONES DIARIOS Y REVISTAS",
+            "100",
+        ),
+        expense_row(
+            "2",
+            "2025-01",
+            "8",
+            "Persona Dos",
+            "SUSCRIPCIONES, DIARIOS Y REVISTAS",
+            "200",
+        ),
+        expense_row(
+            "3",
+            "2025-02",
+            "7",
+            "Persona Uno",
+            "SUSCRIPCIONES, DIARIOS Y REVISTAS",
+            "300",
+        ),
+    ]
+
+    result = normalize_expenses(rows, source_path=Path("source.csv"))
+    category_names = {
+        row["categoria_nombre"]
+        for row in result.ranking_rows
+        if row["categoria_id"] == "suscripciones_diarios_y_revistas"
+    }
+
+    assert category_names == {"Suscripciones diarios y revistas"}
+
+
 def test_expense_autodiscovery_excludes_parliamentarian_csv(tmp_path: Path) -> None:
     expense_path = tmp_path / "senado_gastos_operacionales_2012-01_2026-02.csv"
     parliamentarian_path = (
