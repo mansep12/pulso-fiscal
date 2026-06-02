@@ -24,9 +24,30 @@ Convertir datos publicos dificiles de revisar en rankings y tablas comparables, 
 ## Estructura
 
 - `etl/`: pipeline Python de descarga, normalizacion, manifiestos y carga.
-- `db/`: migraciones PostgreSQL/Supabase.
 - `docs/`: metodologia, fuentes, glosario y decisiones.
+- `supabase/`: configuracion y migraciones versionadas de Supabase.
 - `web/`: frontend Next.js conectado a vistas agregadas en Supabase.
+
+## Base De Datos
+
+Las migraciones se gestionan con Supabase CLI desde `supabase/migrations`.
+
+Para preparar una maquina nueva:
+
+```powershell
+supabase login
+supabase link --project-ref fyheiploqcxrrymeijhy
+```
+
+Para aplicar migraciones pendientes:
+
+```powershell
+supabase db push --dry-run
+supabase db push
+```
+
+Durante el pre-MVP se usa una migracion baseline idempotente. Despues del MVP,
+los cambios de base de datos deben agregarse como migraciones incrementales nuevas.
 
 ## Aviso
 
