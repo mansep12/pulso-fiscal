@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     default: "Pulso Fiscal",
     template: "%s | Pulso Fiscal",
   },
-  description: "Datos publicos claros para revisar gastos del Estado de Chile.",
+  description: "Ranking neutral de gastos operacionales del Senado de Chile.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

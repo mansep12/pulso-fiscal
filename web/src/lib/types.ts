@@ -1,42 +1,71 @@
-export type SourceStatus = "pendiente" | "parcial" | "revisada";
+export const DEFAULT_PERIOD_FROM = "2021-01";
 
-export type ConfidenceLevel = "alto" | "medio" | "bajo";
+export const RANKING_SORT_KEYS = [
+  "promedio_mensual",
+  "total_monto",
+  "registros",
+  "meses_con_datos",
+  "nombre",
+] as const;
 
-export type SpendingCategory =
-  | "combustible"
-  | "arriendo_vehiculos"
-  | "mantencion"
-  | "tag_peajes"
-  | "viaticos"
-  | "viajes";
+export type RankingSortKey = (typeof RANKING_SORT_KEYS)[number];
 
-export type Institution = {
-  slug: string;
-  name: string;
-  shortName: string;
-  type: "ministerio";
-  description: string;
-  sourceStatus: SourceStatus;
-  sourceUrl: string | null;
-  lastChecked: string | null;
+export type SortDirection = "asc" | "desc";
+
+export type RankingFilters = {
+  query?: string;
+  categoryId?: string;
+  periodFrom?: string;
+  periodTo?: string;
+  sort: RankingSortKey;
+  direction: SortDirection;
 };
 
-export type SpendingRecord = {
+export type PeriodRange = {
+  from: string;
+  to: string;
+};
+
+export type SenadoCategory = {
   id: string;
-  institutionSlug: string;
-  period: string;
-  category: SpendingCategory;
-  amountClp: number;
-  provider: string | null;
-  sourceUrl: string;
-  capturedAt: string;
-  confidence: ConfidenceLevel;
-  note: string;
-};
-
-export type InstitutionSummary = {
-  institution: Institution;
+  name: string;
   totalClp: number;
   recordCount: number;
-  confidence: ConfidenceLevel;
+  activeMonths: number;
+  senatorCount: number;
+};
+
+export type SenadoPeriodSummary = {
+  period: string;
+  year: number;
+  month: number;
+  totalClp: number;
+  recordCount: number;
+  senatorCount: number;
+};
+
+export type SenadorSummary = {
+  id: string;
+  name: string;
+  totalClp: number;
+  recordCount: number;
+  activeMonths: number;
+  monthlyAverageClp: number;
+};
+
+export type SenadorCategorySummary = {
+  id: string;
+  name: string;
+  totalClp: number;
+  recordCount: number;
+  activeMonths: number;
+};
+
+export type SenadorPeriodSummary = {
+  period: string;
+  year: number;
+  month: number;
+  totalClp: number;
+  recordCount: number;
+  categoryCount: number;
 };

@@ -19,16 +19,3 @@ export function formatPeriod(period: string): string {
     year: "numeric",
   }).format(date);
 }
-
-export function formatStatus(status: string): string {
-  const labels: Record<string, string> = {
-    pendiente: "Pendiente",
-    parcial: "Parcial",
-    revisada: "Revisada",
-    alto: "Alto",
-    medio: "Medio",
-    bajo: "Bajo",
-  };
-
-  return labels[status] ?? status;
-}

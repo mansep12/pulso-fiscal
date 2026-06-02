@@ -4,20 +4,20 @@ export const metadata = {
 
 const sections = [
   {
-    title: "Trazabilidad",
-    body: "Cada dato debe conservar URL fuente, fecha de captura, institucion emisora y hash del documento cuando exista un archivo descargable.",
+    title: "Fuente unica",
+    body: "El MVP usa solo la fuente oficial de gastos operacionales del Senado. La web no mezcla otros organismos ni datos de demostracion.",
   },
   {
-    title: "Estimaciones como rangos",
-    body: "Litros y kilometros equivalentes no se muestran como hechos exactos. Se calculan con supuestos publicados y se presentan como rangos.",
+    title: "Desde 2021",
+    body: "Las vistas usadas por la web filtran registros rankeables desde enero de 2021 hasta el ultimo periodo cargado.",
   },
   {
-    title: "Alertas tecnicas",
-    body: "Una alerta es una regla reproducible sobre datos publicos. No representa una acusacion ni una conclusion legal.",
+    title: "Comparacion justa",
+    body: "El orden por defecto usa promedio mensual: total dividido por meses con datos. Asi no se favorece automaticamente a quien aparece mas tiempo.",
   },
   {
-    title: "Niveles de confianza",
-    body: "Alto indica dato directo con documento oficial; medio indica calculo desde fuente oficial; bajo indica dato incompleto o pendiente de validacion.",
+    title: "No acusatorio",
+    body: "Los rankings son comparaciones tecnicas sobre datos publicos. Un monto alto no implica por si solo irregularidad.",
   },
 ];
 
@@ -26,11 +26,11 @@ export default function MethodologyPage() {
     <main className="mx-auto max-w-5xl px-5 py-14">
       <p className="text-sm font-black uppercase tracking-[0.28em] text-slate-500">Metodologia</p>
       <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-6xl">
-        Como se convierte una fuente oficial en una metrica clara.
+        Como se calcula el ranking del Senado.
       </h1>
       <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-600">
-        La metodologia completa vive en `docs/metodologia.md`. Esta pagina resume las reglas que
-        debe cumplir cualquier dato antes de aparecer en el sitio publico.
+        El pipeline descarga la fuente oficial, conserva trazabilidad, normaliza categorias y carga
+        a Supabase. La web consulta vistas agregadas del ultimo run ok.
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
@@ -41,6 +41,17 @@ export default function MethodologyPage() {
           </article>
         ))}
       </div>
+
+      <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-black text-slate-950">Formula principal</h2>
+        <div className="mt-4 rounded-2xl bg-slate-950 p-5 font-mono text-sm text-slate-100">
+          promedio_mensual = total_monto / meses_con_datos
+        </div>
+        <p className="mt-4 text-sm leading-6 text-slate-600">
+          `meses_con_datos` cuenta solo meses donde el senador tiene registros rankeables. El total
+          y los registros se recalculan cuando se filtra por categoria o periodo.
+        </p>
+      </section>
     </main>
   );
 }
