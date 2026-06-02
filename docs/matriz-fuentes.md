@@ -1,43 +1,15 @@
-# Matriz de fuentes
+# Fuente MVP
 
-Objetivo: revisar disponibilidad real de datos antes de construir scrapers definitivos.
+Objetivo: mantener una sola fuente clara para la primera version publica.
 
-Estados sugeridos: `si`, `no`, `parcial`, `pendiente`.
+| Dataset | URL oficial | Estado | Formato usado | Periodo web | Observaciones |
+| --- | --- | --- | --- | --- | --- |
+| Gastos operacionales de senadores | https://www.senado.cl/transparencia/gastos-operacionales-senadores | revisada | API JSON publica consumida por la pagina | desde 2021-01 | La web usa solo registros rankeables del ultimo run ok. |
 
-| Ministerio | URL Transparencia Activa | Combustible | Vehiculos | Viaticos | Viajes | Sueldos | Formato dominante | Observaciones |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Ministerio del Interior | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Seguridad Publica | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Relaciones Exteriores | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Defensa Nacional | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Hacienda | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio Secretaria General de la Presidencia | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio Secretaria General de Gobierno | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Economia, Fomento y Turismo | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Desarrollo Social y Familia | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Educacion | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Justicia y Derechos Humanos | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio del Trabajo y Prevision Social | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Obras Publicas | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Salud | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Vivienda y Urbanismo | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Agricultura | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Mineria | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Transportes y Telecomunicaciones | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Bienes Nacionales | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Energia | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio del Medio Ambiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio del Deporte | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de la Mujer y la Equidad de Genero | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de las Culturas, las Artes y el Patrimonio | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
-| Ministerio de Ciencia, Tecnologia, Conocimiento e Innovacion | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente | pendiente |
+## Criterios
 
-## Criterios de revision
-
-- URL: enlace directo a la pagina de Transparencia Activa o seccion oficial equivalente.
-- Combustible: ordenes de compra, rendiciones, gasto mensual o contratos relacionados.
-- Vehiculos: parque vehicular, asignaciones, patentes, contratos o arriendos.
-- Viaticos: planillas de comisiones de servicio, viajes o pagos asociados.
-- Viajes: viajes nacionales/internacionales, InfoLobby u otra fuente oficial.
-- Sueldos: remuneraciones de autoridades publicadas por Transparencia Activa.
-- Formato dominante: HTML, PDF, XLSX, CSV, JSON u otro.
+- Conservar URL fuente por request.
+- Guardar fecha de captura UTC.
+- Guardar hash SHA256 del body descargado.
+- Mantener raw y processed fuera de Git.
+- Cargar a Supabase solo datos normalizados y trazables.

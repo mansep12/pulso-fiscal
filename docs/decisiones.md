@@ -14,24 +14,23 @@ Este documento registra las decisiones base del proyecto para evitar cambios de 
 ## Alcance
 
 - Pais inicial: Chile.
-- Ambito inicial: Gobierno Central.
-- MVP: combustible y vehiculos.
-- Plan B: viaticos y viajes si los datos de combustible no estan disponibles o no son comparables.
-- No incluir municipios, gobiernos regionales ni otros paises en la primera etapa.
+- Ambito inicial: Senado de Chile.
+- MVP: gastos operacionales de senadores.
+- Periodo publico inicial: desde 2021-01 hasta el ultimo periodo cargado.
 
 ## Fuente de datos
 
-- Prioridad inicial: datos publicados en Transparencia Activa y sitios oficiales.
+- Pagina oficial de Transparencia Activa del Senado.
 - Cada dato publicado debe tener URL fuente, fecha de captura y hash del documento original cuando exista archivo descargable.
-- Los documentos crudos se almacenan fuera de Git si son pesados o cambiantes.
+- Los documentos crudos se almacenan fuera de Git.
 
 ## Editorial
 
 - El proyecto mide y visualiza datos publicos; no acusa personas ni instituciones.
 - Usar lenguaje tecnico, verificable y neutral.
-- Mostrar estimaciones como rangos, no como hechos absolutos.
+- Mostrar rankings como comparaciones tecnicas, no como conclusiones legales.
 - No publicar datos personales innecesarios como RUT, domicilio, telefono o informacion privada.
-- Evitar nombres de funcionarios no autoridades cuando no sean estrictamente necesarios.
+- Se pueden usar nombres de senadores porque son autoridades y la fuente es oficial.
 
 ## Datos sensibles
 
@@ -41,11 +40,11 @@ Este documento registra las decisiones base del proyecto para evitar cambios de 
 
 ## Stack inicial
 
-- ETL: Python 3.12, uv, Polars, Playwright, DuckDB.
-- Base de datos: PostgreSQL, inicialmente compatible con Neon free tier.
-- Web futura: Next.js, TypeScript, Tailwind CSS y shadcn/ui.
+- ETL: Python 3.12, uv, httpx, Polars, Rich.
+- Base de datos: Supabase/PostgreSQL.
+- Web: Next.js, TypeScript y Tailwind CSS.
 - Hosting futuro: Cloudflare Pages o Vercel.
-- Archivos futuros: Cloudflare R2 si se requiere almacenar documentos.
+- Archivos: Cloudflare R2 para respaldar raw/processed.
 
 ## Licencias
 
@@ -56,4 +55,4 @@ Este documento registra las decisiones base del proyecto para evitar cambios de 
 
 - Proyecto personal de tiempo libre.
 - Sin Pull Requests externos en la primera etapa; se aceptan issues para errores o sugerencias.
-- Primer objetivo operativo: matriz de disponibilidad de datos y un pipeline reproducible para un ministerio piloto.
+- Primer objetivo operativo: ranking comparable de gastos operacionales de senadores desde 2021.

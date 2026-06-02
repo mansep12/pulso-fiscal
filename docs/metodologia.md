@@ -2,98 +2,72 @@
 
 Esta pagina define como se recopilan, procesan y presentan los datos de Pulso Fiscal.
 
-## Fuentes de datos
+## Fuente de datos
 
-- Sitios oficiales de ministerios y servicios.
-- Transparencia Activa.
-- Documentos descargables publicados por organismos publicos.
-- Otras fuentes publicas oficiales cuando sean necesarias y verificables.
+El MVP usa solo gastos operacionales de senadores publicados por el Senado de Chile:
+
+```text
+https://www.senado.cl/transparencia/gastos-operacionales-senadores
+```
+
+El scraper consume la API publica que usa esa pagina y guarda una copia raw de cada respuesta.
 
 Cada dato debe conservar:
 
 - URL fuente.
 - Fecha de captura.
-- Institucion emisora.
+- Dataset.
 - Documento original o referencia al recurso original.
-- Hash SHA256 del documento cuando corresponda.
+- Hash SHA256 del body descargado.
 - Categoria asignada.
 
 ## Periodicidad
 
-La periodicidad inicial dependera de la frecuencia de actualizacion de cada fuente oficial. La primera etapa prioriza recoleccion manual asistida por scripts y validacion antes de automatizar.
+La carga se ejecuta manualmente por ahora. La web muestra datos desde 2021-01 hasta el ultimo periodo cargado en Supabase.
 
 ## Normalizacion
 
-Los datos de origen pueden venir en HTML, PDF, Excel, CSV u otros formatos. El pipeline debe transformar cada fuente a un esquema canonico con al menos:
+El pipeline transforma la API del Senado a un esquema canonico con al menos:
 
-- Institucion.
+- Senador.
 - Periodo.
 - Categoria de gasto.
 - Monto original.
-- Proveedor, si existe.
-- Documento fuente.
-- Nivel de confianza.
+- URL fuente.
+- Archivo raw.
+- Hash de la respuesta.
+- Estado de calidad de la fila.
 
-## Calculo de litros estimados
+## Comparacion principal
 
-Los litros estimados se calculan como rango, no como punto unico:
-
-```text
-litros_min = monto_gastado / precio_maximo_litro_periodo
-litros_max = monto_gastado / precio_minimo_litro_periodo
-```
-
-El precio de referencia debe provenir de una fuente oficial o publica verificable y debe quedar documentado.
-
-## Calculo de kilometros estimados
-
-Los kilometros estimados tambien se calculan como rango:
+El ranking por defecto usa promedio mensual para comparar senadores con distinta cantidad de meses publicados:
 
 ```text
-km_min = litros_min * rendimiento_bajo_km_l
-km_max = litros_max * rendimiento_alto_km_l
+promedio_mensual = total_monto / meses_con_datos
 ```
 
-Los supuestos de rendimiento deben publicarse junto al calculo. Un ejemplo inicial conservador:
+`meses_con_datos` cuenta meses donde el senador tiene al menos un registro rankeable.
 
-- Rendimiento bajo: 5 km/l.
-- Rendimiento alto: 12 km/l.
+## Filas excluidas
 
-Estos valores deben revisarse si se obtiene informacion oficial de tipo de vehiculo o kilometraje real.
+El normalizador excluye del ranking filas que no son seguras para agregar, por ejemplo:
 
-## Alertas tecnicas
+- montos vacios o invalidos;
+- notas sin monto agregable;
+- montos incrustados en texto;
+- ajustes negativos, reportados aparte;
+- duplicados si aparecen en la fuente.
 
-Las alertas no son acusaciones. Son indicadores generados por reglas publicadas.
 
-Reglas iniciales propuestas:
+## Base de datos
 
-- Gasto inusual: monto mayor a `Q3 + 1.5 * IQR` dentro de instituciones comparables.
-- Aumento mensual relevante: variacion mayor a 200% respecto del mes anterior.
-- Falta de respaldo: gasto publicado sin documento o URL verificable.
-- Concentracion de proveedor: proveedor concentra mas de 80% del gasto de una categoria en 12 meses.
-
-Cada alerta debe incluir:
-
-- Tipo de alerta.
-- Formula usada.
-- Datos de entrada.
-- Fuente oficial.
-- Nivel de confianza.
-
-## Niveles de confianza
-
-| Nivel | Definicion |
-| --- | --- |
-| Alto | Dato directo desde documento oficial, con URL y hash. |
-| Medio | Dato calculado desde fuente oficial con formula publicada. |
-| Bajo | Dato incompleto, no estandarizado o pendiente de confirmacion. |
+Supabase es la fuente de verdad de la web. Next.js consulta vistas y funciones SQL agregadas, no tablas crudas completas.
 
 ## Limitaciones conocidas
 
-- Las fuentes pueden cambiar de URL o formato.
+- La fuente puede cambiar de URL o formato.
 - Los datos publicados pueden estar incompletos o agregados.
-- Las equivalencias en litros y kilometros son estimaciones.
-- Un gasto asociado a una institucion no implica automaticamente uso personal por una autoridad.
+- No todos los senadores aparecen durante la misma cantidad de meses.
 
 ## Correcciones
 

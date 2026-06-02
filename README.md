@@ -1,14 +1,14 @@
 # Pulso Fiscal
 
-Plataforma de transparencia que recopila y visualiza gastos publicos asociados a autoridades, ministerios y servicios del Estado de Chile.
+Plataforma de transparencia que recopila y visualiza gastos operacionales publicados por el Senado de Chile.
 
 ## Estado
 
-En desarrollo inicial. Sin release publico todavia.
+MVP en desarrollo. El foco actual es el Senado, con datos desde 2021 en adelante.
 
 ## Mision
 
-Convertir datos publicos dificiles de revisar en informacion clara para cualquier ciudadano, con trazabilidad total a la fuente oficial.
+Convertir datos publicos dificiles de revisar en rankings y tablas comparables, con trazabilidad a la fuente oficial y lenguaje neutral.
 
 ## Principios
 
@@ -23,11 +23,11 @@ Convertir datos publicos dificiles de revisar en informacion clara para cualquie
 
 ## Estructura
 
-- `etl/`: pipeline Python de descarga, parseo y normalizacion.
-- `db/`: esquema PostgreSQL.
+- `etl/`: pipeline Python de descarga, normalizacion, manifiestos y carga.
+- `db/`: migraciones PostgreSQL/Supabase.
 - `docs/`: metodologia, fuentes, glosario y decisiones.
-- `web/`: frontend Next.js con datos demo mientras se valida la data real.
+- `web/`: frontend Next.js conectado a vistas agregadas en Supabase.
 
 ## Aviso
 
-Las estimaciones, como litros o kilometros equivalentes, se presentan como rangos y no constituyen hechos absolutos. Para reportar errores o sugerir mejoras, abrir un issue.
+Un monto alto no implica por si solo irregularidad. Los rankings son comparaciones tecnicas sobre datos publicos. Para reportar errores o sugerir mejoras, abrir un issue.
