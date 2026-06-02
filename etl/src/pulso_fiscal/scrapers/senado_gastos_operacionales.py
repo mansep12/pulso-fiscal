@@ -375,7 +375,9 @@ def run(client: httpx.Client, config: ScraperConfig, console: Console) -> None:
     )
 
     manifest = _build_download_manifest(config, selected_periods)
-    manifest_path = config.processed_dir / "senado" / "gastos_operacionales" / "download_manifest.json"
+    manifest_path = (
+        config.processed_dir / "senado" / "gastos_operacionales" / "download_manifest.json"
+    )
     manifest.write(manifest_path)
     console.print(f"Manifest guardado: {display_path(manifest_path, ETL_DIR)}")
 

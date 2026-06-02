@@ -55,7 +55,13 @@ class R2Client:
             ExtraArgs={"ContentType": content_type},
         )
 
-    def upload_bytes(self, data: bytes, bucket: str, r2_key: str, content_type: str = "application/octet-stream") -> None:
+    def upload_bytes(
+        self,
+        data: bytes,
+        bucket: str,
+        r2_key: str,
+        content_type: str = "application/octet-stream",
+    ) -> None:
         """Sube bytes en memoria a R2."""
         self._client.put_object(
             Bucket=bucket,

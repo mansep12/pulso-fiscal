@@ -1,12 +1,11 @@
 # ETL Pulso Fiscal
 
-Pipeline para descargar, parsear, normalizar y calcular metricas sobre datos publicos usados por Pulso Fiscal.
+Pipeline para descargar, normalizar, respaldar y cargar datos publicos del Senado usados por Pulso Fiscal.
 
 ## Requisitos
 
 - Python 3.12 o superior.
 - uv.
-- Chromium para Playwright.
 
 ## Instalacion
 
@@ -14,37 +13,36 @@ Desde `etl/`:
 
 ```powershell
 uv sync --group dev
-uv run playwright install chromium
 ```
 
 ## Estructura de datos
 
-- `data/raw/`: HTML, PDF, Excel u otros documentos originales descargados desde fuentes oficiales. No se versiona en Git.
-- `data/interim/`: resultados intermedios de parseo. No se versiona en Git.
-- `data/processed/`: CSVs normalizados listos para cargar o publicar. Se puede versionar si el archivo es pequeno y no contiene datos sensibles.
+- `data/raw/`: respuestas JSON originales descargadas desde la fuente oficial. No se versiona en Git.
+- `data/interim/`: resultados intermedios si se requieren. No se versiona en Git.
+- `data/processed/`: CSVs normalizados listos para cargar a Supabase o respaldar en R2.
 
 ## Convencion de nombres
 
 Usar nombres reproducibles y ordenables:
 
 ```text
-{fuente}_{institucion}_{periodo}_{fecha_captura}.{extension}
+{fuente}_{dataset}_{periodo}.{extension}
 ```
 
 Ejemplo:
 
 ```text
-transparencia_mop_2025-01_2026-05-24.html
+senado_gastos_operacionales_2021-01_2026-02.csv
 ```
 
 ## Flujo esperado
 
 1. Descargar fuente oficial y guardar copia en `data/raw/`.
 2. Calcular hash SHA256 del documento.
-3. Parsear a una estructura tabular intermedia.
-4. Normalizar al esquema canonico.
-5. Calcular metricas y alertas.
-6. Exportar resultado a `data/processed/`.
+3. Normalizar al esquema canonico.
+4. Generar tablas de ranking y reporte de calidad.
+5. Exportar resultado a `data/processed/`.
+6. Cargar Supabase con `--load-db` cuando corresponda.
 
 ## Comandos
 
@@ -64,7 +62,13 @@ datos:
 - CSV normalizado en `data/processed/`, conservando todos los campos que entrega
   la API y agregando columnas de trazabilidad.
 
-Descargar todo lo disponible:
+Descargar el rango usado por la web:
+
+```powershell
+uv run senado-gastos-operacionales --from 2021-01
+```
+
+Descargar todo lo disponible para auditoria historica:
 
 ```powershell
 uv run senado-gastos-operacionales
@@ -110,7 +114,7 @@ normalizacion marca filas con problemas para que los rankings usen solo datos
 seguros de agregar.
 
 ```powershell
-uv run senado-normalizar-gastos-operacionales
+uv run senado-normalizar-gastos-operacionales --load-db
 ```
 
 Tambien se puede indicar un CSV especifico:
