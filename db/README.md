@@ -1,29 +1,19 @@
 # Base de datos
 
-La primera etapa de Pulso Fiscal no depende de una base de datos en la nube.
+Supabase/PostgreSQL es la fuente de verdad para la web del MVP Senado.
 
-## Estrategia inicial
+## Migraciones
 
-1. Descargar fuentes oficiales a `etl/data/raw/`.
-2. Parsear y normalizar datos a `etl/data/processed/`.
-3. Usar DuckDB local para explorar CSVs y generar agregados.
-4. Exponer datos a la web como JSON/CSV estaticos.
+- `migrations/001_senado_gastos_operacionales.sql`: tablas base para runs, datos limpios y ranking mensual.
+- `migrations/002_senado_latest_views.sql`: vistas y funciones que consume la web, filtradas desde 2021-01 y usando el ultimo run `ok`.
 
-## Por que no Postgres todavia
+## Flujo
 
-Todavia no se con certeza que formatos, columnas y granularidad tienen las fuentes publicas.
+1. Ejecutar ETL y normalizador.
+2. Cargar datos limpios y ranking con `--load-db`.
+3. Aplicar migraciones SQL en Supabase.
+4. La web consulta vistas/RPC agregadas, no tablas completas.
 
-## Archivos
+## Regla principal
 
-- `schema.draft.sql`: borrador exploratorio de entidades posibles.
-
-## Migrar a Postgres/Neon
-
-Usar una base de datos en la nube cuando exista al menos una de estas necesidades:
-
-- Busqueda dinamica por autoridad o institucion.
-- Filtros combinados complejos.
-- Actualizaciones automaticas frecuentes.
-- API publica.
-- Reportes ciudadanos o usuarios.
-- Volumen grande de datos que haga incomodo publicar JSON/CSV estatico.
+Guardar runs historicos esta permitido, pero la web siempre lee solo el ultimo run con `status = 'ok'`.
