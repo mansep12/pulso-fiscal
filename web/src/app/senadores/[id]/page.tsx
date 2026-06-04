@@ -123,7 +123,7 @@ export default async function SenatorPage({ params }: SenatorPageProps) {
             <h2 className="text-xl font-black text-slate-950">Serie mensual</h2>
             <p className="mt-1 text-sm text-slate-600">Periodos con registros desde 2021.</p>
           </div>
-          <div className="max-h-[620px] divide-y divide-slate-100 overflow-y-auto">
+          <div className="max-h-155 divide-y divide-slate-100 overflow-y-auto">
             {periods.map((period) => (
               <div
                 className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_150px] sm:items-center"

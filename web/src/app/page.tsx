@@ -70,7 +70,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         </div>
 
-        <aside className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <aside className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">
             Datos reales
           </p>
