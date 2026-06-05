@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from pulso_fiscal.normalizers.senado_gastos_operacionales import (
+    DEFAULT_PUBLICATION_FROM,
     EXPENSE_FILE_PREFIX,
     STATUS_AJUSTE,
     STATUS_DUPLICADO,
@@ -10,6 +11,7 @@ from pulso_fiscal.normalizers.senado_gastos_operacionales import (
     is_normalizer_input_candidate,
     normalize_category,
     normalize_expenses,
+    quality_gate_failures,
 )
 
 
@@ -136,6 +138,59 @@ def test_expense_autodiscovery_excludes_parliamentarian_csv(tmp_path: Path) -> N
     )
 
 
+def test_quality_gate_allows_historical_missing_period_before_publication_range() -> None:
+    report = quality_report(missing_periods=["2020-12"])
+
+    assert quality_gate_failures(report, publication_from=DEFAULT_PUBLICATION_FROM) == []
+
+
+def test_quality_gate_blocks_missing_period_inside_publication_range() -> None:
+    report = quality_report(missing_periods=["2020-12", "2024-05"])
+
+    failures = quality_gate_failures(report, publication_from=DEFAULT_PUBLICATION_FROM)
+
+    assert failures == [
+        "Hay periodos faltantes en el rango publico desde 2021-01: 2024-05."
+    ]
+
+
+def test_quality_gate_blocks_empty_rankable_dataset() -> None:
+    report = quality_report(
+        source_rows=0,
+        clean_rows=0,
+        included_rows=0,
+        ranking_rows=0,
+        category_rows=0,
+        period_count=0,
+        ok_rows=0,
+    )
+
+    failures = quality_gate_failures(report)
+
+    assert "No hay filas fuente." in failures
+    assert "No hay filas incluidas en ranking." in failures
+    assert "No hay filas de ranking." in failures
+    assert "No hay categorias normalizadas." in failures
+    assert "No hay periodos detectados." in failures
+    assert "No hay filas con row_status ok." in failures
+
+
+def test_quality_gate_blocks_duplicate_source_ids() -> None:
+    report = quality_report(duplicate_extra_rows=2)
+
+    failures = quality_gate_failures(report)
+
+    assert failures == ["Hay 2 filas duplicadas por source_id."]
+
+
+def test_quality_gate_blocks_conflicting_duplicate_source_ids() -> None:
+    report = quality_report(conflicting_duplicates=1)
+
+    failures = quality_gate_failures(report)
+
+    assert failures == ["Hay 1 grupos source_id duplicados con contenido distinto."]
+
+
 def expense_row(
     source_id: str,
     periodo: str,
@@ -160,4 +215,35 @@ def expense_row(
         "raw_file": "raw.json",
         "raw_body_sha256": "abc",
         "fecha_captura_utc": "2026-01-01T00:00:00+00:00",
+    }
+
+
+def quality_report(
+    *,
+    source_rows: int = 10,
+    clean_rows: int = 10,
+    included_rows: int = 8,
+    ranking_rows: int = 4,
+    category_rows: int = 2,
+    period_count: int = 3,
+    missing_periods: list[str] | None = None,
+    duplicate_extra_rows: int = 0,
+    conflicting_duplicates: int = 0,
+    ok_rows: int = 8,
+) -> dict[str, object]:
+    return {
+        "source_rows": source_rows,
+        "clean_rows": clean_rows,
+        "included_in_ranking_rows": included_rows,
+        "ranking_rows": ranking_rows,
+        "category_rows": category_rows,
+        "periods": {
+            "count": period_count,
+            "missing_in_range": missing_periods or [],
+        },
+        "identity": {
+            "duplicate_source_id_extra_rows": duplicate_extra_rows,
+            "conflicting_duplicate_source_id_groups": conflicting_duplicates,
+        },
+        "row_status_counts": {"ok": ok_rows},
     }

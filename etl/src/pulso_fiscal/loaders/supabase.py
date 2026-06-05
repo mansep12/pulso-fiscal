@@ -10,7 +10,9 @@ Uso:
 
 from __future__ import annotations
 
+import csv
 import os
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -19,7 +21,10 @@ import psycopg2
 import psycopg2.extras
 
 if TYPE_CHECKING:
-    from pulso_fiscal.manifest import PipelineManifest
+    from pulso_fiscal.manifest import PipelineManifest, ProcessedFileRecord
+
+
+PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 def _get_conn() -> psycopg2.extensions.connection:
@@ -36,6 +41,7 @@ def load_pipeline(
     ranking_path: Path,
 ) -> None:
     """Carga completa del pipeline: dataset_run + clean + ranking."""
+    validate_pipeline_inputs(manifest, clean_path, ranking_path)
     conn = _get_conn()
     try:
         with conn:
@@ -45,6 +51,73 @@ def load_pipeline(
         print(f"Carga a Supabase completa. run_id={manifest.run_id}")
     finally:
         conn.close()
+
+
+def validate_pipeline_inputs(
+    manifest: PipelineManifest,
+    clean_path: Path,
+    ranking_path: Path,
+) -> None:
+    """Valida manifest y archivos antes de tocar la base de datos."""
+    if not manifest.run_id.strip():
+        raise RuntimeError("Manifest sin run_id.")
+
+    _validate_period("period_from", manifest.period_from)
+    _validate_period("period_to", manifest.period_to)
+    if manifest.period_from > manifest.period_to:
+        raise RuntimeError(
+            "Manifest con rango de periodos invalido: "
+            f"{manifest.period_from} > {manifest.period_to}."
+        )
+
+    clean_record = _manifest_record(manifest, "clean")
+    ranking_record = _manifest_record(manifest, "ranking_mensual")
+    if clean_record is None:
+        raise RuntimeError("Manifest sin output clean.")
+    if ranking_record is None:
+        raise RuntimeError("Manifest sin output ranking_mensual.")
+
+    _validate_csv_path("clean", clean_path)
+    _validate_csv_path("ranking_mensual", ranking_path)
+    _validate_row_count("clean", clean_path, clean_record.row_count)
+    _validate_row_count("ranking_mensual", ranking_path, ranking_record.row_count)
+
+
+def _manifest_record(
+    manifest: PipelineManifest,
+    name: str,
+) -> ProcessedFileRecord | None:
+    return next((record for record in manifest.output_files if record.name == name), None)
+
+
+def _validate_period(label: str, value: str) -> None:
+    if not PERIOD_RE.fullmatch(value):
+        raise RuntimeError(f"Manifest con {label} invalido: {value!r}.")
+
+
+def _validate_csv_path(label: str, path: Path) -> None:
+    if not path.exists():
+        raise RuntimeError(f"CSV {label} no existe: {path}.")
+    if not path.is_file():
+        raise RuntimeError(f"CSV {label} no es un archivo: {path}.")
+
+
+def _validate_row_count(label: str, path: Path, expected: int) -> None:
+    actual = _csv_data_row_count(path)
+    if actual != expected:
+        raise RuntimeError(
+            f"CSV {label} tiene {actual} filas, pero el manifest declara {expected}."
+        )
+
+
+def _csv_data_row_count(path: Path) -> int:
+    with path.open(newline="", encoding="utf-8-sig") as file:
+        reader = csv.reader(file)
+        try:
+            next(reader)
+        except StopIteration:
+            return 0
+        return sum(1 for _row in reader)
 
 
 def upsert_dataset_run(

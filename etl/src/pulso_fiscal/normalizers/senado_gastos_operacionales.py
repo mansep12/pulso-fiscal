@@ -41,6 +41,7 @@ STATUS_MONTO_EN_TEXTO = "monto_en_texto"
 STATUS_NOTA = "nota"
 STATUS_SIN_CATEGORIA = "sin_categoria"
 STATUS_SIN_MONTO = "sin_monto"
+DEFAULT_PUBLICATION_FROM = "2021-01"
 
 MONEY_TEXT_RE = re.compile(r"^-?\s*\$\s*[\d.\s-]+$")
 
@@ -256,6 +257,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     manifest.write(pipeline_manifest_path)
     print(f"Pipeline manifest: {pipeline_manifest_path}")
 
+    if args.enforce_quality_gate or args.upload_r2 or args.load_db:
+        enforce_quality_gate(result.quality_report, publication_from=args.publication_from)
+
     if args.upload_r2:
         _upload_processed_to_r2(manifest, run_id, output_dir)
 
@@ -348,6 +352,18 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         action="store_true",
         default=False,
         help="Carga datos limpios a Supabase/Postgres al finalizar.",
+    )
+    parser.add_argument(
+        "--publication-from",
+        type=period_label,
+        default=DEFAULT_PUBLICATION_FROM,
+        help="Primer periodo publico usado para gates de calidad. Por defecto: 2021-01.",
+    )
+    parser.add_argument(
+        "--enforce-quality-gate",
+        action="store_true",
+        default=False,
+        help="Ejecuta el gate de calidad aunque no se suba a R2 ni se cargue DB.",
     )
     return parser.parse_args(argv)
 
@@ -802,6 +818,137 @@ def quality_warnings(
     return warnings
 
 
+def enforce_quality_gate(
+    report: Mapping[str, object],
+    *,
+    publication_from: str = DEFAULT_PUBLICATION_FROM,
+) -> None:
+    failures = quality_gate_failures(report, publication_from=publication_from)
+    if not failures:
+        print("Quality gate: ok")
+        return
+
+    formatted_failures = "\n".join(f"- {failure}" for failure in failures)
+    raise SystemExit(
+        "Quality gate failed; no se publicara ni cargara este run:\n"
+        f"{formatted_failures}"
+    )
+
+
+def quality_gate_failures(
+    report: Mapping[str, object],
+    *,
+    publication_from: str = DEFAULT_PUBLICATION_FROM,
+) -> list[str]:
+    try:
+        publication_start = period_label(publication_from)
+    except argparse.ArgumentTypeError as exc:
+        return [str(exc)]
+
+    failures: list[str] = []
+    source_rows = report_int(report, "source_rows")
+    clean_rows = report_int(report, "clean_rows")
+    included_rows = report_int(report, "included_in_ranking_rows")
+    ranking_rows = report_int(report, "ranking_rows")
+    category_rows = report_int(report, "category_rows")
+    periods = report_mapping(report, "periods")
+    identity = report_mapping(report, "identity")
+    row_status_counts = report_mapping(report, "row_status_counts")
+
+    if source_rows == 0:
+        failures.append("No hay filas fuente.")
+    if clean_rows != source_rows:
+        failures.append(
+            f"Filas clean ({clean_rows}) no coinciden con filas fuente ({source_rows})."
+        )
+    if included_rows == 0:
+        failures.append("No hay filas incluidas en ranking.")
+    if ranking_rows == 0:
+        failures.append("No hay filas de ranking.")
+    if category_rows == 0:
+        failures.append("No hay categorias normalizadas.")
+    if report_int(periods, "count") == 0:
+        failures.append("No hay periodos detectados.")
+
+    missing_public_periods = publication_missing_periods(
+        report_string_list(periods, "missing_in_range"),
+        publication_from=publication_start,
+    )
+    if missing_public_periods:
+        failures.append(
+            "Hay periodos faltantes en el rango publico desde "
+            f"{publication_start}: {format_period_sample(missing_public_periods)}."
+        )
+
+    duplicate_extra_rows = report_int(identity, "duplicate_source_id_extra_rows")
+    if duplicate_extra_rows > 0:
+        failures.append(f"Hay {duplicate_extra_rows} filas duplicadas por source_id.")
+
+    conflicting_duplicates = report_int(identity, "conflicting_duplicate_source_id_groups")
+    if conflicting_duplicates > 0:
+        failures.append(
+            f"Hay {conflicting_duplicates} grupos source_id duplicados con contenido distinto."
+        )
+
+    if report_int(row_status_counts, STATUS_OK) == 0:
+        failures.append("No hay filas con row_status ok.")
+
+    return failures
+
+
+def publication_missing_periods(
+    periods: Sequence[str],
+    *,
+    publication_from: str,
+) -> list[str]:
+    missing_periods: list[str] = []
+    for period in periods:
+        try:
+            normalized_period = period_label(period)
+        except argparse.ArgumentTypeError:
+            missing_periods.append(period)
+            continue
+        if normalized_period >= publication_from:
+            missing_periods.append(normalized_period)
+    return missing_periods
+
+
+def format_period_sample(periods: Sequence[str]) -> str:
+    sample = ", ".join(periods[:10])
+    if len(periods) <= 10:
+        return sample
+    return f"{sample} (+{len(periods) - 10} mas)"
+
+
+def report_mapping(report: Mapping[str, object], key: str) -> dict[str, object]:
+    value = report.get(key)
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(item_key): item_value for item_key, item_value in value.items()}
+
+
+def report_string_list(report: Mapping[str, object], key: str) -> list[str]:
+    value = report.get(key)
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
+def report_int(report: Mapping[str, object], key: str) -> int:
+    value = report.get(key)
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.isdecimal():
+            return int(stripped)
+    return 0
+
+
 def periods_missing_in_range(periods: Sequence[str]) -> list[str]:
     if not periods:
         return []
@@ -813,6 +960,20 @@ def periods_missing_in_range(periods: Sequence[str]) -> list[str]:
         for index in range(start, end + 1)
         if index_to_period(index) not in present
     ]
+
+
+def period_label(value: str) -> str:
+    cleaned = clean_cell(value)
+    if not re.fullmatch(r"\d{4}-\d{2}", cleaned):
+        msg = f"Periodo invalido {value!r}. Usa YYYY-MM."
+        raise argparse.ArgumentTypeError(msg)
+
+    month = int(cleaned[5:7])
+    if not 1 <= month <= 12:
+        msg = f"Mes invalido en periodo {value!r}. Usa 01-12."
+        raise argparse.ArgumentTypeError(msg)
+
+    return cleaned
 
 
 def period_to_index(period: str) -> int:
