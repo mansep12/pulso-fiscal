@@ -220,24 +220,28 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <p className="mt-1 text-sm text-slate-600">Vista general desde 2021.</p>
           </div>
           <div className="divide-y divide-slate-100">
-            {categories.slice(0, 8).map((category) => (
-              <a
-                className="grid gap-2 px-5 py-4 hover:bg-slate-50 sm:grid-cols-[1fr_150px] sm:items-center"
-                href={`/?category=${encodeURIComponent(category.id)}&sort=promedio_mensual&direction=desc#ranking`}
-                key={category.id}
-                target="_top"
-              >
-                <span>
-                  <span className="block font-bold text-slate-950">{category.name}</span>
-                  <span className="text-sm text-slate-500">
-                    {formatNumber(category.recordCount)} registros, {formatNumber(category.senatorCount)} senadores
+            {categories.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-slate-500">No hay categorias disponibles.</p>
+            ) : (
+              categories.slice(0, 8).map((category) => (
+                <a
+                  className="grid gap-2 px-5 py-4 hover:bg-slate-50 sm:grid-cols-[1fr_150px] sm:items-center"
+                  href={`/?category=${encodeURIComponent(category.id)}&sort=promedio_mensual&direction=desc#ranking`}
+                  key={category.id}
+                  target="_top"
+                >
+                  <span>
+                    <span className="block font-bold text-slate-950">{category.name}</span>
+                    <span className="text-sm text-slate-500">
+                      {formatNumber(category.recordCount)} registros, {formatNumber(category.senatorCount)} senadores
+                    </span>
                   </span>
-                </span>
-                <span className="font-black text-slate-950 sm:text-right">
-                  {formatClp(category.totalClp)}
-                </span>
-              </a>
-            ))}
+                  <span className="font-black text-slate-950 sm:text-right">
+                    {formatClp(category.totalClp)}
+                  </span>
+                </a>
+              ))
+            )}
           </div>
         </div>
 
@@ -247,22 +251,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <p className="mt-1 text-sm text-slate-600">Totales mensuales del ultimo run cargado.</p>
           </div>
           <div className="divide-y divide-slate-100">
-            {periods.map((period) => (
-              <div
-                className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_150px] sm:items-center"
-                key={period.period}
-              >
-                <span>
-                  <span className="block font-bold text-slate-950">{formatPeriod(period.period)}</span>
-                  <span className="text-sm text-slate-500">
-                    {formatNumber(period.recordCount)} registros, {formatNumber(period.senatorCount)} senadores
+            {periods.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-slate-500">No hay periodos disponibles.</p>
+            ) : (
+              periods.map((period) => (
+                <div
+                  className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_150px] sm:items-center"
+                  key={period.period}
+                >
+                  <span>
+                    <span className="block font-bold text-slate-950">{formatPeriod(period.period)}</span>
+                    <span className="text-sm text-slate-500">
+                      {formatNumber(period.recordCount)} registros, {formatNumber(period.senatorCount)} senadores
+                    </span>
                   </span>
-                </span>
-                <span className="font-black text-slate-950 sm:text-right">
-                  {formatClp(period.totalClp)}
-                </span>
-              </div>
-            ))}
+                  <span className="font-black text-slate-950 sm:text-right">
+                    {formatClp(period.totalClp)}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>

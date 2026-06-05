@@ -40,6 +40,13 @@ type PeriodRow = {
   categorias?: number;
 };
 
+class DataQueryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DataQueryError";
+  }
+}
+
 export async function getSenadorSummaries(
   filters: RankingFilters,
 ): Promise<SenadorSummary[]> {
@@ -54,7 +61,7 @@ export async function getSenadorSummaries(
 
   if (error) {
     console.error("Error consultando resumen de senadores:", error.message);
-    return [];
+    throw new DataQueryError("No pudimos consultar el ranking de senadores.");
   }
 
   return ((data ?? []) as SenadorSummaryRow[])
@@ -76,7 +83,7 @@ export async function getSenadorSummary(id: string): Promise<SenadorSummary | nu
 
   if (error) {
     console.error("Error consultando senador:", error.message);
-    return null;
+    throw new DataQueryError("No pudimos consultar la ficha del senador.");
   }
 
   return data ? mapSenadorSummary(data as unknown as SenadorSummaryRow) : null;
@@ -94,7 +101,7 @@ export async function getCategories(): Promise<SenadoCategory[]> {
 
   if (error) {
     console.error("Error consultando categorias:", error.message);
-    return [];
+    throw new DataQueryError("No pudimos consultar las categorias.");
   }
 
   return ((data ?? []) as CategoryRow[]).map((row) => ({
@@ -116,7 +123,12 @@ export async function getPeriodRange(): Promise<{ from: string; to: string } | n
     .limit(1)
     .single();
 
-  if (error || !data) return null;
+  if (error) {
+    console.error("Error consultando rango de periodos:", error.message);
+    throw new DataQueryError("No pudimos consultar el rango de periodos.");
+  }
+
+  if (!data) return null;
   return {
     from: (data.period_from as string | null) ?? DEFAULT_PERIOD_FROM,
     to: (data.period_to as string | null) ?? DEFAULT_PERIOD_FROM,
@@ -134,7 +146,7 @@ export async function getPeriodSummaries(limit = 8): Promise<SenadoPeriodSummary
 
   if (error) {
     console.error("Error consultando periodos:", error.message);
-    return [];
+    throw new DataQueryError("No pudimos consultar los periodos.");
   }
 
   return ((data ?? []) as PeriodRow[]).map((row) => ({
@@ -160,7 +172,7 @@ export async function getSenadorCategories(
 
   if (error) {
     console.error("Error consultando categorias de senador:", error.message);
-    return [];
+    throw new DataQueryError("No pudimos consultar las categorias del senador.");
   }
 
   return ((data ?? []) as CategoryRow[])
@@ -185,7 +197,7 @@ export async function getSenadorPeriods(id: string): Promise<SenadorPeriodSummar
 
   if (error) {
     console.error("Error consultando periodos de senador:", error.message);
-    return [];
+    throw new DataQueryError("No pudimos consultar los periodos del senador.");
   }
 
   return ((data ?? []) as PeriodRow[])

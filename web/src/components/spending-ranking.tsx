@@ -29,7 +29,10 @@ export function SpendingRanking({
   if (summaries.length === 0) {
     return (
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-slate-500">Sin datos disponibles.</p>
+        <p className="font-bold text-slate-950">No hay datos para los filtros seleccionados.</p>
+        <p className="mt-2 text-sm text-slate-500">
+          Ajusta el periodo, la categoria o la busqueda para ampliar la comparacion.
+        </p>
       </div>
     );
   }

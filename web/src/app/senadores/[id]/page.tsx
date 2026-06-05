@@ -102,19 +102,25 @@ export default async function SenatorPage({ params }: SenatorPageProps) {
             <p className="mt-1 text-sm text-slate-600">Ordenado por total acumulado.</p>
           </div>
           <div className="divide-y divide-slate-100">
-            {categories.map((category) => (
-              <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_140px]" key={category.id}>
-                <span>
-                  <span className="block font-bold text-slate-950">{category.name}</span>
-                  <span className="text-sm text-slate-500">
-                    {formatNumber(category.recordCount)} registros en {formatNumber(category.activeMonths)} meses
+            {categories.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-slate-500">
+                No hay categorias disponibles para este senador.
+              </p>
+            ) : (
+              categories.map((category) => (
+                <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_140px]" key={category.id}>
+                  <span>
+                    <span className="block font-bold text-slate-950">{category.name}</span>
+                    <span className="text-sm text-slate-500">
+                      {formatNumber(category.recordCount)} registros en {formatNumber(category.activeMonths)} meses
+                    </span>
                   </span>
-                </span>
-                <span className="font-black text-slate-950 sm:text-right">
-                  {formatClp(category.totalClp)}
-                </span>
-              </div>
-            ))}
+                  <span className="font-black text-slate-950 sm:text-right">
+                    {formatClp(category.totalClp)}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -124,22 +130,28 @@ export default async function SenatorPage({ params }: SenatorPageProps) {
             <p className="mt-1 text-sm text-slate-600">Periodos con registros desde 2021.</p>
           </div>
           <div className="max-h-155 divide-y divide-slate-100 overflow-y-auto">
-            {periods.map((period) => (
-              <div
-                className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_150px] sm:items-center"
-                key={period.period}
-              >
-                <span>
-                  <span className="block font-bold text-slate-950">{formatPeriod(period.period)}</span>
-                  <span className="text-sm text-slate-500">
-                    {formatNumber(period.recordCount)} registros, {formatNumber(period.categoryCount)} categorias
+            {periods.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-slate-500">
+                No hay periodos disponibles para este senador.
+              </p>
+            ) : (
+              periods.map((period) => (
+                <div
+                  className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_150px] sm:items-center"
+                  key={period.period}
+                >
+                  <span>
+                    <span className="block font-bold text-slate-950">{formatPeriod(period.period)}</span>
+                    <span className="text-sm text-slate-500">
+                      {formatNumber(period.recordCount)} registros, {formatNumber(period.categoryCount)} categorias
+                    </span>
                   </span>
-                </span>
-                <span className="font-black text-slate-950 sm:text-right">
-                  {formatClp(period.totalClp)}
-                </span>
-              </div>
-            ))}
+                  <span className="font-black text-slate-950 sm:text-right">
+                    {formatClp(period.totalClp)}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
