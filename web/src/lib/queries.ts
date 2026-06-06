@@ -129,9 +129,13 @@ export async function getPeriodRange(): Promise<{ from: string; to: string } | n
   }
 
   if (!data) return null;
+  const from = (data.period_from as string | null)?.trim();
+  const to = (data.period_to as string | null)?.trim();
+  if (!from || !to) return null;
+
   return {
-    from: (data.period_from as string | null) ?? DEFAULT_PERIOD_FROM,
-    to: (data.period_to as string | null) ?? DEFAULT_PERIOD_FROM,
+    from,
+    to,
   };
 }
 
