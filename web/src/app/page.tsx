@@ -11,7 +11,6 @@ import {
 } from "@/lib/queries";
 import { formatClp, formatNumber, formatPeriod } from "@/lib/format";
 import {
-  DEFAULT_PERIOD_FROM,
   RANKING_SORT_KEYS,
   type RankingFilters,
   type RankingSortKey,
@@ -36,7 +35,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const selectedCategory = categories.find((category) => category.id === filters.categoryId);
   const total = summaries.reduce((sum, summary) => sum + summary.totalClp, 0);
   const records = summaries.reduce((sum, summary) => sum + summary.recordCount, 0);
-  const periodoLabel = selectedRange.to
+  const periodoLabel = selectedRange.from && selectedRange.to
     ? `${formatPeriod(selectedRange.from)} - ${formatPeriod(selectedRange.to)}`
     : "Sin datos";
 
@@ -143,7 +142,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium outline-none focus:border-slate-950"
                 defaultValue={selectedRange.from}
                 max={range?.to}
-                min={range?.from ?? DEFAULT_PERIOD_FROM}
+                min={range?.from}
                 name="from"
                 type="month"
               />
@@ -155,7 +154,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium outline-none focus:border-slate-950"
                 defaultValue={selectedRange.to}
                 max={range?.to}
-                min={range?.from ?? DEFAULT_PERIOD_FROM}
+                min={range?.from}
                 name="to"
                 type="month"
               />

@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+
+from pulso_fiscal.manifest import sha256_file
 from pulso_fiscal.normalizers.senado_gastos_operacionales import (
     DEFAULT_PUBLICATION_FROM,
     EXPENSE_FILE_PREFIX,
@@ -12,6 +15,9 @@ from pulso_fiscal.normalizers.senado_gastos_operacionales import (
     normalize_category,
     normalize_expenses,
     quality_gate_failures,
+    resolve_run_id,
+    validate_download_manifest_for_publication,
+    validate_source_rows_against_download_manifest,
 )
 
 
@@ -189,6 +195,69 @@ def test_quality_gate_blocks_conflicting_duplicate_source_ids() -> None:
     failures = quality_gate_failures(report)
 
     assert failures == ["Hay 1 grupos source_id duplicados con contenido distinto."]
+
+
+def test_validate_download_manifest_for_publication_requires_r2_key(tmp_path: Path) -> None:
+    manifest = {"run_id": "20260605T000000Z"}
+
+    with pytest.raises(SystemExit, match="r2_manifest_key"):
+        validate_download_manifest_for_publication(manifest, tmp_path / "download_manifest.json")
+
+
+def test_resolve_run_id_reuses_download_manifest_run_id() -> None:
+    run_id = resolve_run_id(None, {"run_id": "20260605T000000Z"})
+
+    assert run_id == "20260605T000000Z"
+
+
+def test_resolve_run_id_blocks_mismatched_explicit_run_id() -> None:
+    with pytest.raises(SystemExit, match="no coincide"):
+        resolve_run_id("20260606T000000Z", {"run_id": "20260605T000000Z"})
+
+
+def test_validate_source_rows_against_download_manifest_blocks_stale_raw(
+    tmp_path: Path,
+) -> None:
+    raw_path = tmp_path / "raw" / "page_001.json"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_text('{"body_sha256": "fresh"}\n', encoding="utf-8")
+    manifest = {
+        "raw_files": [{"local_path": raw_path.as_posix(), "sha256": sha256_file(raw_path)}]
+    }
+    rows = [{"raw_file": raw_path.as_posix(), "raw_body_sha256": "stale"}]
+
+    with pytest.raises(SystemExit, match="no coincide"):
+        validate_source_rows_against_download_manifest(rows, manifest)
+
+
+def test_validate_source_rows_against_download_manifest_accepts_matching_raw(
+    tmp_path: Path,
+) -> None:
+    raw_path = tmp_path / "raw" / "page_001.json"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_text('{"body_sha256": "fresh"}\n', encoding="utf-8")
+    manifest = {
+        "raw_files": [{"local_path": raw_path.as_posix(), "sha256": sha256_file(raw_path)}]
+    }
+    rows = [{"raw_file": raw_path.as_posix(), "raw_body_sha256": "fresh"}]
+
+    validate_source_rows_against_download_manifest(rows, manifest)
+
+
+def test_validate_source_rows_against_download_manifest_blocks_changed_raw_file(
+    tmp_path: Path,
+) -> None:
+    raw_path = tmp_path / "raw" / "page_001.json"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_text('{"body_sha256": "original"}\n', encoding="utf-8")
+    manifest = {
+        "raw_files": [{"local_path": raw_path.as_posix(), "sha256": sha256_file(raw_path)}]
+    }
+    raw_path.write_text('{"body_sha256": "fresh"}\n', encoding="utf-8")
+    rows = [{"raw_file": raw_path.as_posix(), "raw_body_sha256": "fresh"}]
+
+    with pytest.raises(SystemExit, match="raw_file cambio"):
+        validate_source_rows_against_download_manifest(rows, manifest)
 
 
 def expense_row(

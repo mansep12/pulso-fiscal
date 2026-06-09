@@ -281,6 +281,7 @@ def run(client: httpx.Client, config: ScraperConfig, console: Console) -> None:
     available_response = fetch_available_periods(client)
     available_raw_path = config.raw_dir / "available_periods.json"
     save_raw_response(available_raw_path, available_response)
+    run_raw_paths = [available_raw_path]
 
     available_items = extract_data_items(available_response.body)
     available_periods = sorted({period_from_api_item(item) for item in available_items})
@@ -325,6 +326,7 @@ def run(client: httpx.Client, config: ScraperConfig, console: Console) -> None:
                 client=client,
                 period=period,
                 config=config,
+                run_raw_paths=run_raw_paths,
             )
             parliamentarian_rows.extend(period_parliamentarian_rows)
             sleep(config.sleep_seconds)
@@ -333,6 +335,7 @@ def run(client: httpx.Client, config: ScraperConfig, console: Console) -> None:
                 client=client,
                 period=period,
                 config=config,
+                run_raw_paths=run_raw_paths,
             )
             expense_rows.extend(period_expense_rows)
             sleep(config.sleep_seconds)
@@ -374,7 +377,7 @@ def run(client: httpx.Client, config: ScraperConfig, console: Console) -> None:
         f"{len(parliamentarian_year_paths)} CSVs de parlamentarios por ano."
     )
 
-    manifest = _build_download_manifest(config, selected_periods)
+    manifest = _build_download_manifest(config, selected_periods, run_raw_paths)
     manifest_path = (
         config.processed_dir / "senado" / "gastos_operacionales" / "download_manifest.json"
     )
@@ -400,11 +403,14 @@ def fetch_parliamentarians_for_period(
     client: httpx.Client,
     period: Period,
     config: ScraperConfig,
+    run_raw_paths: list[Path] | None = None,
 ) -> list[CsvRow]:
     params: HttpParams = [("year", str(period.year)), ("month", str(period.month))]
     response = fetch_json(client, PARLIAMENTARIANS_PERIODS_URL, params=params)
     raw_path = config.raw_dir / "parlamentarians_periods" / f"{period.label}.json"
     save_raw_response(raw_path, response)
+    if run_raw_paths is not None:
+        run_raw_paths.append(raw_path)
 
     rows: list[CsvRow] = []
     for item in extract_data_items(response.body):
@@ -422,11 +428,14 @@ def fetch_expenses_for_period(
     client: httpx.Client,
     period: Period,
     config: ScraperConfig,
+    run_raw_paths: list[Path] | None = None,
 ) -> list[CsvRow]:
     rows: list[CsvRow] = []
     first_response = fetch_expense_page(client, period, page=1)
     first_raw_path = expense_raw_path(config, period, page=1)
     save_raw_response(first_raw_path, first_response)
+    if run_raw_paths is not None:
+        run_raw_paths.append(first_raw_path)
 
     page_count = pagination_int(first_response.body, "pageCount") or 1
     expected_total = pagination_int(first_response.body, "total")
@@ -437,6 +446,8 @@ def fetch_expenses_for_period(
         response = fetch_expense_page(client, period, page=page)
         raw_path = expense_raw_path(config, period, page=page)
         save_raw_response(raw_path, response)
+        if run_raw_paths is not None:
+            run_raw_paths.append(raw_path)
         rows.extend(build_expense_rows(response, raw_path))
 
     if expected_total is not None and len(rows) != expected_total:
@@ -769,10 +780,11 @@ def sleep(seconds: float) -> None:
 def _build_download_manifest(
     config: ScraperConfig,
     selected_periods: list[Period],
+    raw_paths: Sequence[Path],
 ) -> DownloadManifest:
-    """Escanea raw_dir y construye el DownloadManifest con hashes de cada archivo."""
+    """Construye el DownloadManifest con los raw usados por esta corrida."""
     raw_files: list[RawFileRecord] = []
-    for json_path in sorted(config.raw_dir.rglob("*.json")):
+    for json_path in sorted(raw_paths):
         raw_files.append(
             RawFileRecord(
                 local_path=display_path(json_path, ETL_DIR),

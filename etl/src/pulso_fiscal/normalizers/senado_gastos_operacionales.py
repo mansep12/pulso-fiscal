@@ -196,7 +196,6 @@ class NormalizationResult:
 def main(argv: Sequence[str] | None = None) -> int:
     load_dotenv(ETL_DIR / ".env.local")
     args = parse_args(argv)
-    run_id = args.run_id or make_run_id()
 
     expense_csv = args.expenses_csv or latest_csv(args.processed_dir, EXPENSE_FILE_PREFIX)
     parliamentarians_csv = args.parliamentarians_csv or optional_latest_csv(
@@ -233,6 +232,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     download_manifest_path = (
         output_dir / "senado" / "gastos_operacionales" / "download_manifest.json"
     )
+    download_manifest = read_json_mapping(download_manifest_path)
+    if args.upload_r2 or args.load_db:
+        validate_download_manifest_for_publication(download_manifest, download_manifest_path)
+        validate_source_rows_against_download_manifest(
+            [*expense_rows, *parliamentarian_rows],
+            download_manifest,
+        )
+    run_id = resolve_run_id(args.run_id, download_manifest)
+    input_file_records = [_processed_record("expenses", expense_csv, len(expense_rows))]
+    if parliamentarians_csv:
+        input_file_records.append(
+            _processed_record("parliamentarians", parliamentarians_csv, len(parliamentarian_rows))
+        )
     output_files = [
         _processed_record("clean", clean_path, len(result.clean_rows)),
         _processed_record("ranking_mensual", ranking_path, len(result.ranking_rows)),
@@ -248,8 +260,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         period_to=suffix.split("_")[1] if "_" in suffix else suffix,
         download_manifest_path=str(download_manifest_path),
         input_files=[str(expense_csv), str(parliamentarians_csv) if parliamentarians_csv else ""],
+        input_file_records=input_file_records,
         output_files=output_files,
         quality_summary=result.quality_report,
+        download_manifest_run_id=manifest_string(download_manifest, "run_id"),
+        download_manifest_r2_key=manifest_string(download_manifest, "r2_manifest_key"),
     )
     pipeline_manifest_path = (
         output_dir / "senado" / "gastos_operacionales" / "pipeline_manifest.json"
@@ -262,6 +277,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.upload_r2:
         _upload_processed_to_r2(manifest, run_id, output_dir)
+        manifest.write(pipeline_manifest_path)
 
     if args.load_db:
         from pulso_fiscal.loaders.supabase import load_pipeline  # noqa: PLC0415
@@ -278,6 +294,117 @@ def _processed_record(name: str, path: Path, row_count: int) -> ProcessedFileRec
         size_bytes=path.stat().st_size,
         row_count=row_count,
     )
+
+
+def read_json_mapping(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Download manifest invalido: {path}.") from exc
+    if not isinstance(value, Mapping):
+        raise SystemExit(f"Download manifest no es un objeto JSON: {path}.")
+    return {str(key): item for key, item in value.items()}
+
+
+def manifest_string(manifest: Mapping[str, object], key: str) -> str:
+    value = manifest.get(key)
+    return value.strip() if isinstance(value, str) else ""
+
+
+def validate_download_manifest_for_publication(
+    manifest: Mapping[str, object],
+    path: Path,
+) -> None:
+    if not manifest:
+        raise SystemExit(
+            f"No se encontro download manifest en {path}. "
+            "Ejecuta primero senado-gastos-operacionales --upload-r2."
+        )
+    if not manifest_string(manifest, "run_id"):
+        raise SystemExit(f"Download manifest sin run_id: {path}.")
+    if not manifest_string(manifest, "r2_manifest_key"):
+        raise SystemExit(
+            f"Download manifest sin r2_manifest_key: {path}. "
+            "Ejecuta primero senado-gastos-operacionales --upload-r2."
+        )
+
+
+def validate_source_rows_against_download_manifest(
+    rows: Sequence[CsvRow],
+    manifest: Mapping[str, object],
+) -> None:
+    raw_file_hashes = download_manifest_raw_body_hashes(manifest)
+    if not raw_file_hashes:
+        raise SystemExit("Download manifest sin raw_files verificables.")
+
+    for row in rows:
+        raw_file = clean_cell(row.get("raw_file"))
+        raw_body_sha256 = clean_cell(row.get("raw_body_sha256"))
+        if not raw_file:
+            raise SystemExit("CSV fuente contiene filas sin raw_file.")
+        expected_hash = raw_file_hashes.get(normalized_manifest_path(raw_file))
+        if expected_hash is None:
+            raise SystemExit(f"raw_file no esta cubierto por download manifest: {raw_file}.")
+        if raw_body_sha256 != expected_hash:
+            raise SystemExit(
+                f"raw_body_sha256 no coincide con download manifest para {raw_file}."
+            )
+
+
+def download_manifest_raw_body_hashes(manifest: Mapping[str, object]) -> dict[str, str]:
+    raw_files = manifest.get("raw_files")
+    if not isinstance(raw_files, list):
+        return {}
+
+    hashes: dict[str, str] = {}
+    for item in raw_files:
+        if not isinstance(item, Mapping):
+            continue
+        local_path = manifest_string(item, "local_path")
+        if not local_path:
+            continue
+        expected_file_sha256 = manifest_string(item, "sha256")
+        raw_path = resolve_raw_path(local_path)
+        if not expected_file_sha256:
+            raise SystemExit(f"raw_file sin sha256 en download manifest: {local_path}.")
+        try:
+            actual_file_sha256 = sha256_file(raw_path)
+        except OSError as exc:
+            raise SystemExit(f"raw_file no existe localmente: {local_path}.") from exc
+        if actual_file_sha256 != expected_file_sha256:
+            raise SystemExit(
+                f"raw_file cambio desde el download manifest: {local_path}."
+            )
+        raw_payload = read_json_mapping(raw_path)
+        body_sha256 = manifest_string(raw_payload, "body_sha256")
+        if body_sha256:
+            hashes[normalized_manifest_path(local_path)] = body_sha256
+    return hashes
+
+
+def resolve_raw_path(local_path: str) -> Path:
+    path = Path(local_path)
+    return path if path.is_absolute() else ETL_DIR / path
+
+
+def normalized_manifest_path(path: str) -> str:
+    return Path(path).as_posix()
+
+
+def resolve_run_id(
+    requested_run_id: str | None,
+    download_manifest: Mapping[str, object],
+) -> str:
+    download_run_id = manifest_string(download_manifest, "run_id")
+    requested = clean_cell(requested_run_id)
+    if requested and download_run_id and requested != download_run_id:
+        raise SystemExit(
+            "--run-id no coincide con el run_id del download manifest: "
+            f"{requested} != {download_run_id}."
+        )
+    return requested or download_run_id or make_run_id()
 
 
 def _upload_processed_to_r2(

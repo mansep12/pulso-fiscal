@@ -121,21 +121,18 @@ export async function getPeriodRange(): Promise<{ from: string; to: string } | n
     .from("senado_period_range_latest")
     .select("period_from, period_to")
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error("Error consultando rango de periodos:", error.message);
     throw new DataQueryError("No pudimos consultar el rango de periodos.");
   }
 
-  if (!data) return null;
-  const from = (data.period_from as string | null)?.trim();
-  const to = (data.period_to as string | null)?.trim();
-  if (!from || !to) return null;
+  if (!data || !data.period_from || !data.period_to) return null;
 
   return {
-    from,
-    to,
+    from: data.period_from as string,
+    to: data.period_to as string,
   };
 }
 
@@ -218,7 +215,7 @@ export async function getSenadorPeriods(id: string): Promise<SenadorPeriodSummar
 
 export function selectedPeriodRange(filters: RankingFilters, range: PeriodRange | null) {
   return {
-    from: filters.periodFrom || range?.from || DEFAULT_PERIOD_FROM,
+    from: filters.periodFrom || range?.from || "",
     to: filters.periodTo || range?.to || "",
   };
 }

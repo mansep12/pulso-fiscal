@@ -15,7 +15,9 @@ import os
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
+import httpx
 import polars as pl
 import psycopg2
 import psycopg2.extras
@@ -25,6 +27,7 @@ if TYPE_CHECKING:
 
 
 PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _get_conn() -> psycopg2.extensions.connection:
@@ -42,6 +45,7 @@ def load_pipeline(
 ) -> None:
     """Carga completa del pipeline: dataset_run + clean + ranking."""
     validate_pipeline_inputs(manifest, clean_path, ranking_path)
+    _validate_public_manifest_reachable(manifest)
     conn = _get_conn()
     try:
         with conn:
@@ -61,6 +65,7 @@ def validate_pipeline_inputs(
     """Valida manifest y archivos antes de tocar la base de datos."""
     if not manifest.run_id.strip():
         raise RuntimeError("Manifest sin run_id.")
+    _validate_public_manifest(manifest)
 
     _validate_period("period_from", manifest.period_from)
     _validate_period("period_to", manifest.period_to)
@@ -79,6 +84,8 @@ def validate_pipeline_inputs(
 
     _validate_csv_path("clean", clean_path)
     _validate_csv_path("ranking_mensual", ranking_path)
+    _validate_processed_record("clean", clean_path, clean_record)
+    _validate_processed_record("ranking_mensual", ranking_path, ranking_record)
     _validate_row_count("clean", clean_path, clean_record.row_count)
     _validate_row_count("ranking_mensual", ranking_path, ranking_record.row_count)
 
@@ -93,6 +100,41 @@ def _manifest_record(
 def _validate_period(label: str, value: str) -> None:
     if not PERIOD_RE.fullmatch(value):
         raise RuntimeError(f"Manifest con {label} invalido: {value!r}.")
+
+
+def _validate_public_manifest(manifest: PipelineManifest) -> None:
+    if not manifest.r2_manifest_key.strip():
+        raise RuntimeError(
+            "Manifest sin r2_manifest_key publico. "
+            "Para cargar DB publica primero con --upload-r2 --load-db."
+        )
+    if not manifest.public_manifest_url.strip():
+        raise RuntimeError(
+            "Manifest sin public_manifest_url publico. "
+            "Para cargar DB publica primero con --upload-r2 --load-db."
+        )
+    parsed_url = urlparse(manifest.public_manifest_url)
+    if parsed_url.scheme != "https" or not parsed_url.netloc:
+        raise RuntimeError("Manifest publico debe usar una URL https valida.")
+
+
+def _validate_public_manifest_reachable(manifest: PipelineManifest) -> None:
+    try:
+        response = httpx.get(manifest.public_manifest_url, follow_redirects=True, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise RuntimeError(
+            "No pudimos leer el public_manifest_url antes de cargar DB: "
+            f"{manifest.public_manifest_url}."
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise RuntimeError("El public_manifest_url no contiene un objeto JSON.")
+    if payload.get("run_id") != manifest.run_id:
+        raise RuntimeError("El manifest publico no coincide con run_id local.")
+    if payload.get("r2_manifest_key") != manifest.r2_manifest_key:
+        raise RuntimeError("El manifest publico no coincide con r2_manifest_key local.")
 
 
 def _validate_csv_path(label: str, path: Path) -> None:
@@ -110,6 +152,37 @@ def _validate_row_count(label: str, path: Path, expected: int) -> None:
         )
 
 
+def _validate_processed_record(
+    label: str,
+    path: Path,
+    record: ProcessedFileRecord,
+) -> None:
+    if not SHA256_RE.fullmatch(record.sha256):
+        raise RuntimeError(f"Manifest output {label} con sha256 invalido.")
+    actual_sha256 = _sha256_file(path)
+    if actual_sha256 != record.sha256:
+        raise RuntimeError(
+            f"CSV {label} tiene sha256 {actual_sha256}, "
+            f"pero el manifest declara {record.sha256}."
+        )
+    actual_size = path.stat().st_size
+    if actual_size != record.size_bytes:
+        raise RuntimeError(
+            f"CSV {label} tiene {actual_size} bytes, "
+            f"pero el manifest declara {record.size_bytes}."
+        )
+
+
+def _sha256_file(path: Path) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def _csv_data_row_count(path: Path) -> int:
     with path.open(newline="", encoding="utf-8-sig") as file:
         reader = csv.reader(file)
@@ -125,6 +198,7 @@ def upsert_dataset_run(
     conn: psycopg2.extensions.connection,
 ) -> None:
     """Inserta o actualiza el registro de la corrida en dataset_runs."""
+    _validate_public_manifest(manifest)
     output_files = manifest.output_files
     clean_record = next((f for f in output_files if f.name == "clean"), None)
     row_count = clean_record.row_count if clean_record else 0

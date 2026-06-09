@@ -24,7 +24,7 @@ Convertir datos publicos dificiles de revisar en rankings y tablas comparables, 
 ## Estructura
 
 - `etl/`: pipeline Python de descarga, normalizacion, manifiestos y carga.
-- `docs/`: metodologia, fuentes, glosario y decisiones.
+- `docs/`: metodologia, fuentes, runbook operativo y decisiones.
 - `supabase/`: configuracion y migraciones versionadas de Supabase.
 - `web/`: frontend Next.js conectado a vistas agregadas en Supabase.
 

@@ -63,19 +63,23 @@ export default async function SourcesPage() {
           <p className="mt-1 text-sm text-slate-600">Ordenadas por total acumulado desde 2021.</p>
         </div>
         <div className="divide-y divide-slate-100">
-          {categories.slice(0, 20).map((category) => (
-            <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_160px]" key={category.id}>
-              <span>
-                <span className="block font-bold text-slate-950">{category.name}</span>
-                <span className="text-sm text-slate-500">
-                  {formatNumber(category.recordCount)} registros, {formatNumber(category.activeMonths)} meses
+          {categories.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-slate-500">No hay categorias disponibles.</p>
+          ) : (
+            categories.slice(0, 20).map((category) => (
+              <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_160px]" key={category.id}>
+                <span>
+                  <span className="block font-bold text-slate-950">{category.name}</span>
+                  <span className="text-sm text-slate-500">
+                    {formatNumber(category.recordCount)} registros, {formatNumber(category.activeMonths)} meses
+                  </span>
                 </span>
-              </span>
-              <span className="font-black text-slate-950 sm:text-right">
-                {formatNumber(category.senatorCount)} senadores
-              </span>
-            </div>
-          ))}
+                <span className="font-black text-slate-950 sm:text-right">
+                  {formatNumber(category.senatorCount)} senadores
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </main>

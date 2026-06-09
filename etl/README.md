@@ -114,8 +114,15 @@ normalizacion marca filas con problemas para que los rankings usen solo datos
 seguros de agregar.
 
 ```powershell
-uv run senado-normalizar-gastos-operacionales --load-db
+uv run senado-normalizar-gastos-operacionales --upload-r2 --load-db
 ```
+
+`--load-db` exige un manifest publico. No se permite cargar un run `ok` a
+Supabase si antes no se subio el manifest a R2 y quedo disponible en
+`public_manifest_url`; antes de abrir conexion a DB, el loader lee esa URL y
+verifica que el JSON corresponda al run local. El normalizador reutiliza el
+`run_id` del `download_manifest.json` generado por el scraper, por lo que la
+trazabilidad raw y processed queda ligada al mismo run.
 
 Tambien se puede indicar un CSV especifico:
 
@@ -143,3 +150,25 @@ Reglas principales:
 Para revision manual, abrir los archivos dentro de
 `data/processed/senado_gastos_operacionales_por_ano/`. El CSV completo puede
 ser pesado para extensiones de VS Code.
+
+## Publicacion y rollback
+
+Flujo minimo para publicar un run:
+
+1. Descargar raw desde la fuente oficial.
+2. Normalizar y revisar el reporte de calidad.
+3. Publicar archivos procesados y manifest en R2.
+4. Cargar Supabase solo con manifest publico disponible.
+5. Verificar en la web que el rango publicado y el ranking correspondan al run.
+
+```powershell
+uv run senado-gastos-operacionales --from 2021-01 --upload-r2
+uv run senado-normalizar-gastos-operacionales --upload-r2 --load-db
+```
+
+El segundo comando falla si no existe `data/processed/senado/gastos_operacionales/download_manifest.json`
+con `run_id` y `r2_manifest_key`.
+
+Si se detecta un problema despues de publicar, marcar el run como no publicable
+en Supabase (`dataset_runs.status = 'error'` o `partial`) o cargar nuevamente el
+ultimo run valido. La web usa solo el ultimo run con `status = 'ok'`.

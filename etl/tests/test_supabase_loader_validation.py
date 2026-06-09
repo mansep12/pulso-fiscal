@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from pulso_fiscal.loaders.supabase import validate_pipeline_inputs
-from pulso_fiscal.manifest import PipelineManifest, ProcessedFileRecord
+import pulso_fiscal.loaders.supabase as supabase_loader
+from pulso_fiscal.loaders.supabase import load_pipeline, validate_pipeline_inputs
+from pulso_fiscal.manifest import PipelineManifest, ProcessedFileRecord, sha256_file
 
 
 def test_validate_pipeline_inputs_accepts_matching_manifest_and_csvs(tmp_path: Path) -> None:
@@ -50,6 +51,99 @@ def test_validate_pipeline_inputs_blocks_missing_ranking_output(tmp_path: Path) 
         validate_pipeline_inputs(manifest, clean_path, ranking_path)
 
 
+def test_validate_pipeline_inputs_requires_public_manifest(tmp_path: Path) -> None:
+    clean_path = write_csv(tmp_path / "clean.csv", rows=1)
+    ranking_path = write_csv(tmp_path / "ranking.csv", rows=1)
+    manifest = pipeline_manifest(clean_path, ranking_path, clean_rows=1, ranking_rows=1)
+    manifest.public_manifest_url = ""
+
+    with pytest.raises(RuntimeError, match="public_manifest_url"):
+        validate_pipeline_inputs(manifest, clean_path, ranking_path)
+
+
+def test_load_pipeline_validates_public_manifest_before_db_connection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clean_path = write_csv(tmp_path / "clean.csv", rows=1)
+    ranking_path = write_csv(tmp_path / "ranking.csv", rows=1)
+    manifest = pipeline_manifest(clean_path, ranking_path, clean_rows=1, ranking_rows=1)
+    manifest.r2_manifest_key = ""
+    called = False
+
+    def fail_get_conn() -> None:
+        nonlocal called
+        called = True
+        raise AssertionError("DB connection should not be opened")
+
+    monkeypatch.setattr(supabase_loader, "_get_conn", fail_get_conn)
+
+    with pytest.raises(RuntimeError, match="r2_manifest_key"):
+        load_pipeline(manifest, clean_path, ranking_path)
+
+    assert not called
+
+
+def test_load_pipeline_validates_public_manifest_url_before_db_connection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clean_path = write_csv(tmp_path / "clean.csv", rows=1)
+    ranking_path = write_csv(tmp_path / "ranking.csv", rows=1)
+    manifest = pipeline_manifest(clean_path, ranking_path, clean_rows=1, ranking_rows=1)
+    called = False
+
+    def fail_public_manifest(_manifest: object) -> None:
+        raise RuntimeError("manifest publico no alcanzable")
+
+    def fail_get_conn() -> None:
+        nonlocal called
+        called = True
+        raise AssertionError("DB connection should not be opened")
+
+    monkeypatch.setattr(
+        supabase_loader,
+        "_validate_public_manifest_reachable",
+        fail_public_manifest,
+    )
+    monkeypatch.setattr(supabase_loader, "_get_conn", fail_get_conn)
+
+    with pytest.raises(RuntimeError, match="no alcanzable"):
+        load_pipeline(manifest, clean_path, ranking_path)
+
+    assert not called
+
+
+def test_validate_pipeline_inputs_requires_https_public_manifest(tmp_path: Path) -> None:
+    clean_path = write_csv(tmp_path / "clean.csv", rows=1)
+    ranking_path = write_csv(tmp_path / "ranking.csv", rows=1)
+    manifest = pipeline_manifest(clean_path, ranking_path, clean_rows=1, ranking_rows=1)
+    manifest.public_manifest_url = "http://public.example/pipeline_manifest.json"
+
+    with pytest.raises(RuntimeError, match="https"):
+        validate_pipeline_inputs(manifest, clean_path, ranking_path)
+
+
+def test_validate_pipeline_inputs_blocks_clean_sha256_mismatch(tmp_path: Path) -> None:
+    clean_path = write_csv(tmp_path / "clean.csv", rows=1)
+    ranking_path = write_csv(tmp_path / "ranking.csv", rows=1)
+    manifest = pipeline_manifest(clean_path, ranking_path, clean_rows=1, ranking_rows=1)
+    manifest.output_files[0].sha256 = "0" * 64
+
+    with pytest.raises(RuntimeError, match="CSV clean tiene sha256"):
+        validate_pipeline_inputs(manifest, clean_path, ranking_path)
+
+
+def test_validate_pipeline_inputs_blocks_ranking_size_mismatch(tmp_path: Path) -> None:
+    clean_path = write_csv(tmp_path / "clean.csv", rows=1)
+    ranking_path = write_csv(tmp_path / "ranking.csv", rows=1)
+    manifest = pipeline_manifest(clean_path, ranking_path, clean_rows=1, ranking_rows=1)
+    manifest.output_files[1].size_bytes += 1
+
+    with pytest.raises(RuntimeError, match="CSV ranking_mensual tiene"):
+        validate_pipeline_inputs(manifest, clean_path, ranking_path)
+
+
 def write_csv(path: Path, *, rows: int) -> Path:
     lines = ["id,value", *(f"{index},x" for index in range(rows))]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -78,16 +172,18 @@ def pipeline_manifest(
             ProcessedFileRecord(
                 name="clean",
                 local_path=str(clean_path),
-                sha256="",
+                sha256=sha256_file(clean_path),
                 size_bytes=clean_path.stat().st_size,
                 row_count=clean_rows,
             ),
             ProcessedFileRecord(
                 name="ranking_mensual",
                 local_path=str(ranking_path),
-                sha256="",
+                sha256=sha256_file(ranking_path),
                 size_bytes=ranking_path.stat().st_size,
                 row_count=ranking_rows,
             ),
         ],
+        r2_manifest_key="senado/gastos_operacionales/runs/run/pipeline_manifest.json",
+        public_manifest_url="https://public.example/pipeline_manifest.json",
     )

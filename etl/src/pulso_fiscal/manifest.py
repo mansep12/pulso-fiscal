@@ -79,10 +79,13 @@ class PipelineManifest:
     period_to: str
     download_manifest_path: str
     input_files: list[str]
+    input_file_records: list[ProcessedFileRecord] = field(default_factory=list)
     output_files: list[ProcessedFileRecord] = field(default_factory=list)
     quality_summary: dict[str, object] = field(default_factory=dict)
     r2_manifest_key: str = ""
     public_manifest_url: str = ""
+    download_manifest_run_id: str = ""
+    download_manifest_r2_key: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
