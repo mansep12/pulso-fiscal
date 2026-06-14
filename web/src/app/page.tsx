@@ -51,7 +51,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
             Pulso Fiscal convierte la fuente oficial del Senado en tablas comparables. El orden por
-            defecto usa promedio mensual para no favorecer a quienes aparecen mas meses.
+            defecto usa promedio mensual para no favorecer a quienes aparecen más meses.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
@@ -77,10 +77,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             Gastos desde 2021
           </p>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Se incluyen registros rankeables desde enero de 2021 hasta el ultimo periodo cargado en
+            Se incluyen registros rankeables desde enero de 2021 hasta el último período cargado en
             Supabase. Las cifras no implican irregularidad.
           </p>
-          <p className="mt-3 text-xs font-bold text-slate-500">Periodo: {periodoLabel}</p>
+          <p className="mt-3 text-xs font-bold text-slate-500">Período: {periodoLabel}</p>
         </aside>
       </section>
 
@@ -91,12 +91,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           value={formatClp(total)}
         />
         <MetricCard
-          detail="Senadores con registros en el periodo o categoria seleccionada."
+          detail="Senadores con registros en el período o categoría seleccionada."
           label="Senadores"
           value={formatNumber(summaries.length)}
         />
         <MetricCard
-          detail="Cantidad de filas usadas para la comparacion actual."
+          detail="Cantidad de filas usadas para la comparación actual."
           label="Registros"
           value={formatNumber(records)}
         />
@@ -121,7 +121,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </label>
 
             <label className="text-sm font-bold text-slate-700">
-              Categoria
+              Categoría
               <select
                 className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium outline-none focus:border-slate-950"
                 defaultValue={filters.categoryId ?? ""}
@@ -176,7 +176,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </label>
 
             <label className="text-sm font-bold text-slate-700">
-              Direccion
+              Dirección
               <select
                 className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium outline-none focus:border-slate-950"
                 defaultValue={filters.direction}
@@ -215,12 +215,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <section className="mx-auto grid max-w-6xl gap-6 px-5 pb-16 lg:grid-cols-2">
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-lg font-black text-slate-950">Categorias con mas gasto</h2>
+            <h2 className="text-lg font-black text-slate-950">Categorías con más gasto</h2>
             <p className="mt-1 text-sm text-slate-600">Vista general desde 2021.</p>
           </div>
           <div className="divide-y divide-slate-100">
             {categories.length === 0 ? (
-              <p className="px-5 py-4 text-sm text-slate-500">No hay categorias disponibles.</p>
+              <p className="px-5 py-4 text-sm text-slate-500">No hay categorías disponibles.</p>
             ) : (
               categories.slice(0, 8).map((category) => (
                 <a
@@ -246,12 +246,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-lg font-black text-slate-950">Ultimos periodos</h2>
-            <p className="mt-1 text-sm text-slate-600">Totales mensuales del ultimo run cargado.</p>
+            <h2 className="text-lg font-black text-slate-950">Últimos períodos</h2>
+            <p className="mt-1 text-sm text-slate-600">Totales mensuales del último run cargado.</p>
           </div>
           <div className="divide-y divide-slate-100">
             {periods.length === 0 ? (
-              <p className="px-5 py-4 text-sm text-slate-500">No hay periodos disponibles.</p>
+              <p className="px-5 py-4 text-sm text-slate-500">No hay períodos disponibles.</p>
             ) : (
               periods.map((period) => (
                 <div

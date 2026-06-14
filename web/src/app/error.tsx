@@ -11,7 +11,7 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
           No pudimos cargar los datos.
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Puede ser un problema temporal con la base de datos o con la configuracion del
+          Puede ser un problema temporal con la base de datos o con la configuración del
           servicio. Intenta nuevamente en unos momentos.
         </p>
         <button

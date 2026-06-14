@@ -31,7 +31,7 @@ export function SpendingRanking({
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <p className="font-bold text-slate-950">No hay datos para los filtros seleccionados.</p>
         <p className="mt-2 text-sm text-slate-500">
-          Ajusta el periodo, la categoria o la busqueda para ampliar la comparacion.
+          Ajusta el período, la categoría o la búsqueda para ampliar la comparación.
         </p>
       </div>
     );
@@ -44,8 +44,8 @@ export function SpendingRanking({
           Ranking de senadores
         </h2>
         <p className="mt-1 text-sm text-slate-600">
-          {categoryName ? `Categoria: ${categoryName}. ` : "Todas las categorias. "}
-          Periodo: {periodLabel}. Orden actual: {sortLabels[filters.sort]} {formatDirection(filters.direction)}.
+          {categoryName ? `Categoría: ${categoryName}. ` : "Todas las categorías. "}
+          Período: {periodLabel}. Orden actual: {sortLabels[filters.sort]} {formatDirection(filters.direction)}.
         </p>
       </div>
       <div className="overflow-x-auto">

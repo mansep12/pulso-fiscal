@@ -12,7 +12,7 @@ export function SiteHeader() {
             <span className="block text-sm font-black uppercase tracking-[0.24em] text-slate-950">
               Pulso Fiscal
             </span>
-            <span className="block text-xs text-slate-500">datos publicos claros</span>
+            <span className="block text-xs text-slate-500">datos públicos claros</span>
           </span>
         </a>
 
@@ -24,7 +24,7 @@ export function SiteHeader() {
             Fuentes
           </Link>
           <Link className="hover:text-slate-950" href="/metodologia">
-            Metodologia
+            Metodología
           </Link>
           <a
             className="rounded-full border border-slate-300 px-3 py-1.5 hover:border-slate-950 hover:text-slate-950 sm:px-4 sm:py-2"

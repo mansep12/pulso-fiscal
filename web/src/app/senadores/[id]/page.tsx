@@ -64,10 +64,10 @@ export default async function SenatorPage({ params }: SenatorPageProps) {
         </div>
 
         <aside className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Periodo</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Período</p>
           <p className="mt-3 text-2xl font-black text-slate-950">{periodLabel}</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Solo registros rankeables desde 2021 en el ultimo run cargado.
+            Solo registros rankeables desde 2021 en el último run cargado.
           </p>
         </aside>
       </section>
@@ -98,13 +98,13 @@ export default async function SenatorPage({ params }: SenatorPageProps) {
       <section className="mt-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-xl font-black text-slate-950">Gasto por categoria</h2>
+            <h2 className="text-xl font-black text-slate-950">Gasto por categoría</h2>
             <p className="mt-1 text-sm text-slate-600">Ordenado por total acumulado.</p>
           </div>
           <div className="divide-y divide-slate-100">
             {categories.length === 0 ? (
               <p className="px-5 py-4 text-sm text-slate-500">
-                No hay categorias disponibles para este senador.
+                No hay categorías disponibles para este senador.
               </p>
             ) : (
               categories.map((category) => (
@@ -127,12 +127,12 @@ export default async function SenatorPage({ params }: SenatorPageProps) {
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
             <h2 className="text-xl font-black text-slate-950">Serie mensual</h2>
-            <p className="mt-1 text-sm text-slate-600">Periodos con registros desde 2021.</p>
+            <p className="mt-1 text-sm text-slate-600">Períodos con registros desde 2021.</p>
           </div>
           <div className="max-h-155 divide-y divide-slate-100 overflow-y-auto">
             {periods.length === 0 ? (
               <p className="px-5 py-4 text-sm text-slate-500">
-                No hay periodos disponibles para este senador.
+                No hay períodos disponibles para este senador.
               </p>
             ) : (
               periods.map((period) => (
@@ -143,7 +143,7 @@ export default async function SenatorPage({ params }: SenatorPageProps) {
                   <span>
                     <span className="block font-bold text-slate-950">{formatPeriod(period.period)}</span>
                     <span className="text-sm text-slate-500">
-                      {formatNumber(period.recordCount)} registros, {formatNumber(period.categoryCount)} categorias
+                      {formatNumber(period.recordCount)} registros, {formatNumber(period.categoryCount)} categorías
                     </span>
                   </span>
                   <span className="font-black text-slate-950 sm:text-right">
