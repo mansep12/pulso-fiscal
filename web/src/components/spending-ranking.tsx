@@ -50,18 +50,41 @@ export function SpendingRanking({
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-215 text-left text-sm">
+          <caption className="sr-only">Ranking de senadores por gastos operacionales</caption>
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.14em] text-slate-500">
             <tr>
               <th className="px-5 py-3" scope="col">#</th>
-              <th className="px-5 py-3" scope="col">{sortLink("Senador", "nombre", filters)}</th>
-              <th className="px-5 py-3 text-right" scope="col">{sortLink("Total", "total_monto", filters)}</th>
-              <th className="px-5 py-3 text-right" scope="col">
+              <th aria-sort={ariaSort("nombre", filters)} className="px-5 py-3" scope="col">
+                {sortLink("Senador", "nombre", filters)}
+              </th>
+              <th
+                aria-sort={ariaSort("total_monto", filters)}
+                className="px-5 py-3 text-right"
+                scope="col"
+              >
+                {sortLink("Total", "total_monto", filters)}
+              </th>
+              <th
+                aria-sort={ariaSort("promedio_mensual", filters)}
+                className="px-5 py-3 text-right"
+                scope="col"
+              >
                 {sortLink("Promedio mensual", "promedio_mensual", filters)}
               </th>
-              <th className="px-5 py-3 text-right" scope="col">
+              <th
+                aria-sort={ariaSort("meses_con_datos", filters)}
+                className="px-5 py-3 text-right"
+                scope="col"
+              >
                 {sortLink("Meses", "meses_con_datos", filters)}
               </th>
-              <th className="px-5 py-3 text-right" scope="col">{sortLink("Registros", "registros", filters)}</th>
+              <th
+                aria-sort={ariaSort("registros", filters)}
+                className="px-5 py-3 text-right"
+                scope="col"
+              >
+                {sortLink("Registros", "registros", filters)}
+              </th>
               <th className="px-5 py-3 text-right" scope="col">Ficha</th>
             </tr>
           </thead>
@@ -113,12 +136,21 @@ function formatDirection(direction: "asc" | "desc") {
   return direction === "asc" ? "menor a mayor" : "mayor a menor";
 }
 
+function ariaSort(
+  sort: RankingSortKey,
+  filters: RankingFilters,
+): "ascending" | "descending" | undefined {
+  if (filters.sort !== sort) return undefined;
+  return filters.direction === "asc" ? "ascending" : "descending";
+}
+
 function sortLink(label: string, sort: RankingSortKey, filters: RankingFilters) {
   const direction = filters.sort === sort && filters.direction === "desc" ? "asc" : "desc";
   const active = filters.sort === sort;
 
   return (
     <a
+      aria-label={`Ordenar por ${label}, ${formatDirection(direction)}`}
       className={active ? "text-slate-950" : "hover:text-slate-950"}
       href={rankingHref(filters, sort, direction)}
       target="_top"
